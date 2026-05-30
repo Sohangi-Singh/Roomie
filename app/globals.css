@@ -1,0 +1,152 @@
+@import "tailwindcss";
+
+/* ----------------------------------------------------------------------------
+   Roomie design tokens — warm, calm, premium "soft college" palette.
+   Tailwind v4: tokens declared in @theme generate utilities (bg-canvas,
+   text-ink, rounded-2xl, shadow-card, font-display, etc).
+---------------------------------------------------------------------------- */
+@theme {
+  /* Surfaces & backgrounds */
+  --color-canvas: #fefcf6;
+  --color-sand: #f4efe6;
+  --color-surface: #fffdf8;
+  --color-surface-2: #f8f4ec;
+  --color-line: rgba(33, 30, 24, 0.08);
+  --color-line-strong: rgba(33, 30, 24, 0.14);
+
+  /* Accent — sage green ramp from #5E6C5B */
+  --color-accent-50: #f3f5f2;
+  --color-accent-100: #e4e8e2;
+  --color-accent-200: #c9d0c6;
+  --color-accent-300: #adb7a9;
+  --color-accent-400: #869180;
+  --color-accent-500: #5e6c5b;
+  --color-accent-600: #4d584a;
+  --color-accent-700: #3c453a;
+  --color-accent-800: #2c322b;
+  --color-accent-900: #1b1f1b;
+  --color-accent: var(--color-accent-500);
+
+  /* Text */
+  --color-ink: #211e18;
+  --color-muted: #6b6f66;
+  --color-faint: #9da096;
+
+  /* Status — muted earthy tones */
+  --color-success: #5e7a59;
+  --color-success-soft: #e7eee4;
+  --color-warning: #b8893e;
+  --color-warning-soft: #f4ebd9;
+  --color-danger: #b5635a;
+  --color-danger-soft: #f2e1de;
+
+  /* Typography */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, sans-serif;
+  --font-display: var(--font-fraunces), ui-serif, Georgia, "Times New Roman",
+    serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Radii — large, rounded, soft */
+  --radius-lg: 1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+  --radius-3xl: 2.25rem;
+  --radius-4xl: 2.75rem;
+
+  /* Soft shadows — no harsh borders */
+  --shadow-soft: 0 2px 8px rgba(33, 30, 24, 0.06);
+  --shadow-card: 0 10px 30px -12px rgba(33, 30, 24, 0.12);
+  --shadow-lift: 0 18px 44px -16px rgba(33, 30, 24, 0.2);
+  --shadow-ring: 0 0 0 4px rgba(94, 108, 91, 0.12);
+
+  /* Motion */
+  --ease-spring: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Skeleton shimmer */
+  --animate-shimmer: shimmer 1.6s ease-in-out infinite;
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior-y: none;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-200);
+    color: var(--color-accent-900);
+  }
+
+  /* Calm, minimal scrollbar */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-accent-200);
+    border-radius: 9999px;
+    border: 3px solid var(--color-canvas);
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Frosted glass surface for sheets, navs, and floating cards */
+@utility glass {
+  background-color: color-mix(in srgb, var(--color-surface) 72%, transparent);
+  backdrop-filter: saturate(140%) blur(16px);
+  -webkit-backdrop-filter: saturate(140%) blur(16px);
+}
+
+/* Shimmer placeholder used by SkeletonLoader */
+@utility shimmer {
+  background-image: linear-gradient(
+    100deg,
+    var(--color-surface-2) 40%,
+    var(--color-sand) 50%,
+    var(--color-surface-2) 60%
+  );
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+
+/* Respect reduced-motion globally */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
