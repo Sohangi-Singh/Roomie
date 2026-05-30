@@ -1,5 +1,7 @@
-import { Home } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
+// Alternatives if you'd rather swap: HeartHandshake (warm),
+// BedDouble (clever roommate metaphor), Sparkles (minimal premium).
 
 export function Brand({
   className,
@@ -20,7 +22,7 @@ export function Brand({
           badge,
         )}
       >
-        <Home className={icon} />
+        <UsersRound className={icon} />
       </span>
       <span className={cn("font-display font-semibold tracking-tight", text)}>
         Roomie
