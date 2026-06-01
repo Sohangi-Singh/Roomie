@@ -233,4 +233,8 @@ firestore.rules           security rules
 
 ## License
 
-No license specified yet — add one before making the repository public.
+Copyright © 2026 Sohangi Singh. **All rights reserved.**
+
+This project is proprietary. The code, design and assets may not be copied,
+forked, modified, redistributed or used to create derivative works without
+prior written permission. See [`LICENSE`](./LICENSE) for the full notice.
