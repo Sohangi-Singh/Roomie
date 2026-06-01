@@ -97,8 +97,8 @@ export default function LandingPage() {
         </Reveal>
         <Reveal delay={0.05}>
           <h1 className="mt-5 font-display text-[2.4rem] font-semibold leading-[1.05] tracking-tight">
-            <span className="italic text-accent-600">Roommate</span> allocation
-            doesn&apos;t have to be random.
+            <span className="italic text-accent-600">Roommate</span>
+            {" "}allocation doesn&apos;t have to be random.
           </h1>
         </Reveal>
         <Reveal delay={0.1}>
