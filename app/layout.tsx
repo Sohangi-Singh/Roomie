@@ -29,12 +29,19 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#FEFCF6",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FEFCF6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0A100A" },
+  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
 };
+
+/** Runs before React hydrates — sets data-theme="dark" if the user picked
+ *  it last visit, so there's no flash of the wrong theme on load. */
+const THEME_INIT = `try{var t=localStorage.getItem('roomie-theme');if(t==='dark'){document.documentElement.dataset.theme='dark';}}catch(e){}`;
 
 export default function RootLayout({
   children,
@@ -42,8 +49,12 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
+      </head>
       <body className="bg-canvas text-ink min-h-full">
         <Providers>{children}</Providers>
       </body>

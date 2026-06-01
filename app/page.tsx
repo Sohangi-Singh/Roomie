@@ -17,7 +17,12 @@ import {
   Check,
 } from "lucide-react";
 import { Brand } from "@/components/features/Brand";
-import { LinkButton, Card, ProgressRing, Avatar } from "@/components/ui";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
+import { LinkButton, Card } from "@/components/ui";
+import { RotatingStat } from "@/components/features/landing/RotatingStat";
+import { SplitComparison } from "@/components/features/landing/SplitComparison";
+import { FloatingTags } from "@/components/features/landing/FloatingTags";
+import { MatchPreview } from "@/components/features/landing/MatchPreview";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -76,7 +81,7 @@ const STEPS = [
 
 export default function LandingPage() {
   return (
-    <main className="relative mx-auto min-h-dvh max-w-md overflow-hidden px-5 pb-16">
+    <main className="relative mx-auto min-h-dvh max-w-md overflow-hidden px-5 pb-12">
       {/* soft ambient glow */}
       <div
         aria-hidden
@@ -86,12 +91,15 @@ export default function LandingPage() {
       {/* top bar */}
       <header className="relative flex items-center justify-between pt-6">
         <Brand />
-        <Link
-          href="/login"
-          className="text-sm font-medium text-muted transition-colors hover:text-ink"
-        >
-          Log in
-        </Link>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Link
+            href="/login"
+            className="px-2 text-sm font-medium text-muted transition-colors hover:text-ink"
+          >
+            Log in
+          </Link>
+        </div>
       </header>
 
       {/* hero */}
@@ -102,18 +110,23 @@ export default function LandingPage() {
           </span>
         </Reveal>
         <Reveal delay={0.05}>
-          <h1 className="mt-5 font-display text-[2.6rem] font-semibold leading-[1.05] tracking-tight">
-            Find your kind of{" "}
-            <span className="italic text-accent-600">roommate.</span>
+          <h1 className="mt-5 font-display text-[2.4rem] font-semibold leading-[1.05] tracking-tight">
+            <span className="italic text-accent-600">Roommate</span> allocation
+            doesn&apos;t have to be random.
           </h1>
         </Reveal>
         <Reveal delay={0.1}>
-          <p className="mt-4 text-[15px] leading-relaxed text-muted">
-            Roomie matches you with future-year roommates who actually fit your
-            sleep, study, and lifestyle — not just whoever&apos;s left.
+          <p className="mt-5 inline-block rounded-2xl bg-accent-100 px-3.5 py-2 font-display text-lg italic leading-snug text-accent-800">
+            Match on lifestyle, not luck.
           </p>
         </Reveal>
         <Reveal delay={0.15}>
+          <p className="mt-4 text-[15px] leading-relaxed text-muted">
+            Everything from sleep to willingness to chip in for shared room
+            essentials — we compare what actually matters.
+          </p>
+        </Reveal>
+        <Reveal delay={0.2}>
           <div className="mt-7 flex flex-col gap-3">
             <LinkButton href="/signup" size="lg" fullWidth>
               Get started <ArrowRight className="size-4" />
@@ -123,34 +136,24 @@ export default function LandingPage() {
             </LinkButton>
           </div>
         </Reveal>
+      </section>
 
-        {/* floating mock match card */}
-        <Reveal delay={0.2}>
-          <motion.div
-            animate={{ y: [0, -8, 0] }}
-            transition={{ duration: 4.5, repeat: Infinity, ease: "easeInOut" }}
-            className="mt-10"
-          >
-            <Card className="flex items-center gap-4">
-              <Avatar name="Aanya R" size="lg" ring />
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">Aanya, 2nd year</p>
-                <p className="truncate text-sm text-muted">
-                  Early sleeper · tidy · quiet study
-                </p>
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <span className="rounded-full bg-success-soft px-2.5 py-0.5 text-xs font-medium text-success">
-                    Sleep 96%
-                  </span>
-                  <span className="rounded-full bg-accent-100 px-2.5 py-0.5 text-xs font-medium text-accent-700">
-                    Study 91%
-                  </span>
-                </div>
-              </div>
-              <ProgressRing value={93} size={68} stroke={7} sublabel="match" />
-            </Card>
-          </motion.div>
+      {/* rotating "did you know" stat */}
+      <section className="relative pt-16">
+        <RotatingStat />
+      </section>
+
+      {/* split-screen comparison */}
+      <section className="relative pt-16">
+        <Reveal>
+          <p className="mb-2 text-center text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
+            The roommate gap
+          </p>
+          <h2 className="mb-5 text-center font-display text-2xl font-semibold leading-tight">
+            One year. Two very different stories.
+          </h2>
         </Reveal>
+        <SplitComparison />
       </section>
 
       {/* match-on grid */}
@@ -167,11 +170,28 @@ export default function LandingPage() {
                 <span className="inline-flex size-10 items-center justify-center rounded-xl bg-accent-100 text-accent-700">
                   <m.icon className="size-5" />
                 </span>
-                <span className="text-xs font-medium text-muted">{m.label}</span>
+                <span className="text-xs font-medium text-muted">
+                  {m.label}
+                </span>
               </div>
             </Reveal>
           ))}
         </div>
+      </section>
+
+      {/* floating lifestyle tags */}
+      <section className="relative pt-16">
+        <Reveal>
+          <h2 className="font-display text-xl font-semibold">
+            Find your kind of people.
+          </h2>
+          <p className="mt-1 text-sm text-muted">
+            Sleep, study, spending, outings — we line it all up.
+          </p>
+        </Reveal>
+        <Reveal delay={0.1} className="mt-4">
+          <FloatingTags />
+        </Reveal>
       </section>
 
       {/* how it works */}
@@ -208,7 +228,8 @@ export default function LandingPage() {
             </h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-muted">
               No public reviews. No toxic feeds. No ranking people. Just a
-              private, respectful way to find someone you&apos;ll live well with.
+              private, respectful way to find someone you&apos;ll live well
+              with.
             </p>
             <ul className="mx-auto mt-4 flex max-w-xs flex-col gap-2 text-left text-sm">
               {[
@@ -223,6 +244,21 @@ export default function LandingPage() {
               ))}
             </ul>
           </Card>
+        </Reveal>
+      </section>
+
+      {/* a peek at a match (moved Aanya card) */}
+      <section className="relative pt-16">
+        <Reveal>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
+            A peek inside
+          </p>
+          <h2 className="font-display text-xl font-semibold">
+            What a match looks like.
+          </h2>
+        </Reveal>
+        <Reveal delay={0.1} className="mt-4">
+          <MatchPreview />
         </Reveal>
       </section>
 
@@ -252,10 +288,14 @@ export default function LandingPage() {
         </Reveal>
       </section>
 
+      {/* footer */}
       <footer className="relative mt-16 flex flex-col items-center gap-2 text-center">
         <Brand size="sm" />
-        <p className="text-xs text-faint">
-          Made for college students. Built with care.
+        <p className="font-display text-sm italic text-muted">
+          Find the roommate you wish you&apos;d been assigned.
+        </p>
+        <p className="mt-3 text-[10px] font-medium tracking-wide text-faint">
+          © 2026 Sohangi Singh · All rights reserved.
         </p>
       </footer>
     </main>

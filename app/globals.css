@@ -75,9 +75,50 @@
   }
 }
 
+/* Dark palette — applied when html has data-theme="dark". CSS variables only,
+   so every existing utility (bg-canvas, text-ink, etc.) auto-swaps. */
+:root[data-theme="dark"] {
+  --color-canvas: #0a100a;
+  --color-sand: #151b14;
+  --color-surface: #1f281a;
+  --color-surface-2: #28321f;
+  --color-line: rgba(244, 239, 230, 0.1);
+  --color-line-strong: rgba(244, 239, 230, 0.18);
+
+  --color-accent-50: #1b231a;
+  --color-accent-100: #28321f;
+  --color-accent-200: #3b4b35;
+  --color-accent-300: #4f6147;
+  --color-accent-400: #627052;
+  --color-accent-500: #818f6f;
+  --color-accent-600: #95a282;
+  --color-accent-700: #a9b596;
+  --color-accent-800: #bdc8ab;
+  --color-accent-900: #d1dac0;
+
+  --color-ink: #f4efe6;
+  --color-muted: #a9aea0;
+  --color-faint: #7a7e72;
+
+  --color-success: #9cb897;
+  --color-success-soft: #233029;
+  --color-warning: #d6b27a;
+  --color-warning-soft: #322817;
+  --color-danger: #d89489;
+  --color-danger-soft: #311e1a;
+
+  --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 10px 30px -12px rgba(0, 0, 0, 0.5);
+  --shadow-lift: 0 18px 44px -16px rgba(0, 0, 0, 0.6);
+  --shadow-ring: 0 0 0 4px rgba(129, 143, 111, 0.25);
+}
+
 @layer base {
   :root {
     color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
   }
 
   * {
