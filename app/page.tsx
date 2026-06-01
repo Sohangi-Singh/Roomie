@@ -4,13 +4,8 @@ import Link from "next/link";
 import { motion, type Variants } from "framer-motion";
 import {
   ArrowRight,
-  Moon,
   Sparkles,
-  Volume2,
-  BookOpen,
-  Wallet,
   Users,
-  Compass,
   ShieldCheck,
   HeartHandshake,
   ClipboardList,
@@ -51,15 +46,6 @@ function Reveal({
     </motion.div>
   );
 }
-
-const MATCH_ON = [
-  { icon: Moon, label: "Sleep" },
-  { icon: Sparkles, label: "Cleanliness" },
-  { icon: Volume2, label: "Noise" },
-  { icon: BookOpen, label: "Study" },
-  { icon: Wallet, label: "Spending" },
-  { icon: Compass, label: "Outings" },
-];
 
 const STEPS = [
   {
@@ -154,29 +140,6 @@ export default function LandingPage() {
           </h2>
         </Reveal>
         <SplitComparison />
-      </section>
-
-      {/* match-on grid */}
-      <section className="relative pt-16">
-        <Reveal>
-          <h2 className="font-display text-xl font-semibold">
-            We match on what actually matters
-          </h2>
-        </Reveal>
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {MATCH_ON.map((m, i) => (
-            <Reveal key={m.label} delay={i * 0.04}>
-              <div className="flex flex-col items-center gap-2 rounded-2xl bg-surface p-4 shadow-soft">
-                <span className="inline-flex size-10 items-center justify-center rounded-xl bg-accent-100 text-accent-700">
-                  <m.icon className="size-5" />
-                </span>
-                <span className="text-xs font-medium text-muted">
-                  {m.label}
-                </span>
-              </div>
-            </Reveal>
-          ))}
-        </div>
       </section>
 
       {/* floating lifestyle tags */}
