@@ -6,6 +6,7 @@ import {
   Volume2,
   PartyPopper,
   Wallet,
+  ArrowLeftRight,
   Moon,
   Sparkles,
   BookOpen,
@@ -19,10 +20,11 @@ import { palette } from "@/config/tokens";
 type Item = { icon: LucideIcon; label: string };
 
 const RANDOM: Item[] = [
-  { icon: Gamepad2, label: "Loud games until 3 AM" },
+  { icon: Gamepad2, label: "Loud games until 5 AM" },
   { icon: Volume2, label: "Reels on speaker" },
   { icon: PartyPopper, label: "Surprise guests every weekend" },
-  { icon: Wallet, label: "Won't split shared costs" },
+  { icon: Wallet, label: "Sketchy about shared costs" },
+  { icon: ArrowLeftRight, label: "Different hobbies" },
 ];
 
 const ROOMIE: Item[] = [
