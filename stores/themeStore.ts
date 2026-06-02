@@ -14,8 +14,9 @@ const STORAGE_KEY = "roomie-theme";
 
 function applyTheme(theme: Theme) {
   if (typeof document === "undefined") return;
-  if (theme === "dark") document.documentElement.dataset.theme = "dark";
-  else delete document.documentElement.dataset.theme;
+  const root = document.documentElement;
+  if (theme === "dark") root.classList.add("dark");
+  else root.classList.remove("dark");
   try {
     localStorage.setItem(STORAGE_KEY, theme);
   } catch {
@@ -32,8 +33,9 @@ export const useThemeStore = create<ThemeState>((set, get) => ({
   toggle: () => get().setTheme(get().theme === "light" ? "dark" : "light"),
   hydrate: () => {
     if (typeof document === "undefined") return;
-    const current =
-      document.documentElement.dataset.theme === "dark" ? "dark" : "light";
+    const current = document.documentElement.classList.contains("dark")
+      ? "dark"
+      : "light";
     set({ theme: current });
   },
 }));

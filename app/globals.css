@@ -75,9 +75,9 @@
   }
 }
 
-/* Dark palette — applied when html has data-theme="dark". CSS variables only,
-   so every existing utility (bg-canvas, text-ink, etc.) auto-swaps. */
-:root[data-theme="dark"] {
+/* Dark palette — applied when html has the `.dark` class. CSS variables
+   only, so every existing utility (bg-canvas, text-ink, etc.) auto-swaps. */
+:root.dark {
   --color-canvas: #0a100a;
   --color-sand: #151b14;
   --color-surface: #1f281a;
@@ -117,7 +117,7 @@
   :root {
     color-scheme: light;
   }
-  :root[data-theme="dark"] {
+  :root.dark {
     color-scheme: dark;
   }
 

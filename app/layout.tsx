@@ -39,9 +39,9 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-/** Runs before React hydrates — sets data-theme="dark" if the user picked
- *  it last visit, so there's no flash of the wrong theme on load. */
-const THEME_INIT = `try{var t=localStorage.getItem('roomie-theme');if(t==='dark'){document.documentElement.dataset.theme='dark';}}catch(e){}`;
+/** Runs before React hydrates — adds the `dark` class if the user picked
+ *  dark mode last visit, so there's no flash of the wrong theme on load. */
+const THEME_INIT = `try{var t=localStorage.getItem('roomie-theme');if(t==='dark'){document.documentElement.classList.add('dark');}}catch(e){}`;
 
 export default function RootLayout({
   children,
