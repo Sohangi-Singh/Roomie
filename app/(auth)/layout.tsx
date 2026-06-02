@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/features/Brand";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 
 export default function AuthLayout({
   children,
@@ -16,7 +17,10 @@ export default function AuthLayout({
         >
           <ArrowLeft className="size-4" /> Home
         </Link>
-        <Brand size="sm" />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Brand size="sm" />
+        </div>
       </header>
       <div className="flex flex-1 flex-col justify-center py-8">{children}</div>
     </main>

@@ -17,7 +17,9 @@ import {
   Segmented,
   Chip,
   Card,
+  Toggle,
 } from "@/components/ui";
+import { useThemeStore } from "@/stores/themeStore";
 import { Brand } from "@/components/features/Brand";
 import {
   HOSTEL_LIST,
@@ -34,6 +36,8 @@ export default function SettingsPage() {
   const myQ = useAuthStore((s) => s.questionnaire);
   const setAuth = useAuthStore((s) => s.setAuth);
   const hydrate = useOnboardingStore((s) => s.hydrate);
+  const theme = useThemeStore((s) => s.theme);
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   const [form, setForm] = useState(() => ({
     fullName: me?.fullName ?? "",
@@ -218,6 +222,17 @@ export default function SettingsPage() {
       </div>
 
       <Card className="mt-6 flex items-center justify-between">
+        <div>
+          <p className="font-medium">Dark mode</p>
+          <p className="text-xs text-muted">Easier on the eyes at night.</p>
+        </div>
+        <Toggle
+          checked={theme === "dark"}
+          onChange={(v) => setTheme(v ? "dark" : "light")}
+        />
+      </Card>
+
+      <Card className="mt-4 flex items-center justify-between">
         <div>
           <p className="font-medium">Compatibility quiz</p>
           <p className="text-xs text-muted">Update your lifestyle answers.</p>
