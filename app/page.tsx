@@ -89,12 +89,7 @@ export default function LandingPage() {
       </header>
 
       {/* hero */}
-      <section className="relative pt-12">
-        <Reveal>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-surface px-3 py-1 text-xs font-medium text-accent-700 shadow-soft ring-1 ring-line">
-            <Sparkles className="size-3.5" /> For hostel students
-          </span>
-        </Reveal>
+      <section className="relative pt-14">
         <Reveal delay={0.05}>
           <h1 className="mt-5 font-display text-[2.4rem] font-semibold leading-[1.05] tracking-tight">
             <span className="italic text-accent-600">Roommate</span>
@@ -149,12 +144,12 @@ export default function LandingPage() {
             Find your kind of people.
           </h2>
           <p className="mt-1 text-sm text-muted">
-            Sleep, study, spending, outings — we line it all up.
+            Quirks, habits, vibes — we line it all up.
           </p>
         </Reveal>
-        <Reveal delay={0.1} className="mt-4">
+        <div className="mt-6">
           <FloatingTags />
-        </Reveal>
+        </div>
       </section>
 
       {/* how it works */}
