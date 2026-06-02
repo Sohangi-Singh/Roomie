@@ -33,6 +33,27 @@ export function simCircularTime(a: number, b: number): number {
   return simLinear(0, circular, 720);
 }
 
+/**
+ * Forgiving circular time similarity for sleep/wake comparisons. Small
+ * differences (1–2 hours) cost very little; the curve only steepens past
+ * 4 hours apart.
+ *
+ *  ≤  60 min → 100   (no penalty)
+ *  ≤ 120 min → 93    (small penalty)
+ *  ≤ 240 min → 75    (moderate penalty)
+ *  ≤ 480 min → 28    (significant penalty)
+ *  ≤ 720 min → 0     (max — opposite clock)
+ */
+export function simTolerantTime(aMin: number, bMin: number): number {
+  const diff = Math.abs(aMin - bMin) % 1440;
+  const circular = Math.min(diff, 1440 - diff);
+  if (circular <= 60) return 100;
+  if (circular <= 120) return 100 - (circular - 60) * (7 / 60);
+  if (circular <= 240) return 93 - (circular - 120) * (18 / 120);
+  if (circular <= 480) return 75 - (circular - 240) * (47 / 240);
+  return Math.max(0, 28 - (circular - 480) * (28 / 240));
+}
+
 const TRI_INDEX: Record<Tri, number> = { no: 0, maybe: 1, yes: 2 };
 export function simTri(a: Tri, b: Tri): number {
   return simLinear(TRI_INDEX[a], TRI_INDEX[b], 2);
@@ -46,9 +67,11 @@ export function simEqual(a: string, b: string, floor = 35): number {
 /* --------------------------- category scorers --------------------------- */
 
 export function sleepScore(a: Questionnaire, b: Questionnaire): number {
+  // Use the tolerant curve so a 1-hour gap stays near 100; only large
+  // differences (4+ hours) really bite.
   return Math.round(
-    0.45 * simCircularTime(a.sleep.sleepTime, b.sleep.sleepTime) +
-      0.35 * simCircularTime(a.sleep.wakeTime, b.sleep.wakeTime) +
+    0.45 * simTolerantTime(a.sleep.sleepTime, b.sleep.sleepTime) +
+      0.35 * simTolerantTime(a.sleep.wakeTime, b.sleep.wakeTime) +
       0.2 * simFreq(a.sleep.naps, b.sleep.naps),
   );
 }
@@ -100,8 +123,12 @@ export function temperatureScore(a: Questionnaire, b: Questionnaire): number {
 
 export function bathroomScore(a: Questionnaire, b: Questionnaire): number {
   const t = { morning: 0, evening: 1, night: 2 } as const;
+  // Bathroom timing is a shared-resource conflict — **different** timing is
+  // better (less contention). So invert the timing similarity.
+  const timingDiff =
+    100 - simLinear(t[a.bathroom.timing], t[b.bathroom.timing], 2);
   return Math.round(
-    0.4 * simLinear(t[a.bathroom.timing], t[b.bathroom.timing], 2) +
+    0.4 * timingDiff +
       0.2 * simLinear(a.bathroom.durationMin, b.bathroom.durationMin, 40) +
       0.4 * simLevel(a.bathroom.hygieneWeight, b.bathroom.hygieneWeight),
   );

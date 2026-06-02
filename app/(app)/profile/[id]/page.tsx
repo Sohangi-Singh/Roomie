@@ -165,6 +165,7 @@ export default function ProfilePage() {
           <Card className="mt-4">
             <InsightList
               reasons={match.reasons}
+              annoyances={match.annoyances}
               conflicts={match.conflicts}
             />
           </Card>

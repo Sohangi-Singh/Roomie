@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Sparkles, Search, Users, Inbox, User } from "lucide-react";
+import { Sparkles, Search, Users, MessageCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
 const ITEMS = [
   { href: "/matches", label: "Matches", icon: Sparkles, match: "/matches" },
   { href: "/explore", label: "Explore", icon: Search, match: "/explore" },
   { href: "/groups", label: "Groups", icon: Users, match: "/groups" },
-  { href: "/connections", label: "Inbox", icon: Inbox, match: "/connections" },
+  { href: "/connections", label: "DMs", icon: MessageCircle, match: "/connections" },
   { href: "/profile/me", label: "Profile", icon: User, match: "/profile" },
 ];
 

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Inbox, Check, Phone, AtSign, Clock } from "lucide-react";
+import { MessageCircle, Check, Phone, AtSign, Clock } from "lucide-react";
 import { useConnections } from "@/hooks/useConnections";
 import { getUser } from "@/lib/firebase/db";
 import { Avatar, Card, Button, Skeleton } from "@/components/ui";
@@ -55,8 +55,10 @@ export default function ConnectionsPage() {
   return (
     <div>
       <header className="mb-5">
-        <h1 className="font-display text-3xl font-semibold">Inbox</h1>
-        <p className="mt-1 text-sm text-muted">Requests and contacts.</p>
+        <h1 className="font-display text-3xl font-semibold">DMs</h1>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          DM your requests and discuss the grey areas with them if need be.
+        </p>
       </header>
 
       {loading && (
@@ -69,7 +71,7 @@ export default function ConnectionsPage() {
 
       {!loading && connections.length === 0 && (
         <EmptyState
-          icon={Inbox}
+          icon={MessageCircle}
           title="Nothing here yet"
           body="When you send or receive a request, it'll show up here."
         />

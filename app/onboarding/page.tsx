@@ -33,6 +33,7 @@ import {
 } from "@/config/hostels";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useAuthStore } from "@/stores/authStore";
+import { useMatchesStore } from "@/stores/matchesStore";
 import { saveUser, saveQuestionnaire } from "@/lib/firebase/db";
 import type { PublicProfile } from "@/lib/api/types";
 import { cn } from "@/lib/utils/cn";
@@ -223,7 +224,12 @@ function OnboardingFlow() {
       };
       await saveUser(user);
       await saveQuestionnaire(q, profileSnapshot);
+      // Patch (don't replace) auth so the fbUser session is preserved through
+      // the retake — never accidentally signs the user out.
       setAuth({ user, questionnaire: q, status: "authed" });
+      // Drop the cached matches so the user sees freshly recomputed rankings
+      // immediately on /matches instead of stale ones.
+      useMatchesStore.getState().reset();
       reset();
       router.replace("/matches");
     } catch {

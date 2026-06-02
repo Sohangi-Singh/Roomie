@@ -8,7 +8,7 @@ const REASONS: Record<Category, string> = {
   study: "You study in compatible ways.",
   lighting: "You agree on lights and brightness.",
   temperature: "Similar temperature and airflow preferences.",
-  bathroom: "Bathroom routines and hygiene expectations match.",
+  bathroom: "Bathroom routines complement each other nicely.",
   social: "Your social energy is well aligned.",
   spending: "Your spending styles are compatible.",
   outing: "You enjoy similar kinds of outings.",
@@ -45,7 +45,7 @@ function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
     case "study":
       return "You focus best in different study environments.";
     case "bathroom":
-      return "Bathroom timing or hygiene expectations differ.";
+      return "Bathroom timing or hygiene expectations may clash.";
     case "spending":
       return "Your monthly budgets are fairly different.";
     case "outing":
@@ -59,6 +59,9 @@ function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
 
 export interface Insights {
   reasons: string[];
+  /** Soft concerns — annoyance-level dealbreakers + medium-low categories. */
+  annoyances: string[];
+  /** Hard dealbreaker conflicts + severe category mismatches only. */
   conflicts: string[];
 }
 
@@ -69,23 +72,52 @@ export function buildInsights(
   dbConflicts: DealbreakerConflict[],
 ): Insights {
   const reasons: string[] = [];
+  const annoyances: string[] = [];
   const conflicts: string[] = [];
 
-  // Dealbreakers lead — they matter most.
+  // Dealbreaker conflicts: hard → "Potential clashes",
+  //                       soft (annoying) → "Might be a problem, but is fine".
+  const seenConflict = new Set<string>();
+  const seenAnnoyance = new Set<string>();
   for (const c of dbConflicts) {
     const line = DEALBREAKER_LINES[c.key];
-    if (!conflicts.includes(line)) conflicts.push(line);
+    if (c.severity === "hard") {
+      if (!seenConflict.has(line)) {
+        conflicts.push(line);
+        seenConflict.add(line);
+      }
+    } else {
+      if (!seenAnnoyance.has(line)) {
+        annoyances.push(line);
+        seenAnnoyance.add(line);
+      }
+    }
   }
 
   const entries = (Object.keys(categories) as Category[]).map((c) => ({
     c,
     score: categories[c],
   }));
-  const high = entries.filter((e) => e.score >= 78).sort((x, y) => y.score - x.score);
-  const low = entries.filter((e) => e.score <= 45).sort((x, y) => x.score - y.score);
+  const high = entries
+    .filter((e) => e.score >= 78)
+    .sort((x, y) => y.score - x.score);
+  // 30–49 = bothersome but liveable
+  const moderate = entries
+    .filter((e) => e.score >= 30 && e.score < 50)
+    .sort((x, y) => x.score - y.score);
+  // < 30 = severe enough to surface as a potential clash
+  const severe = entries
+    .filter((e) => e.score < 30)
+    .sort((x, y) => x.score - y.score);
 
   for (const e of high.slice(0, 4)) reasons.push(REASONS[e.c]);
-  for (const e of low.slice(0, 4)) {
+  for (const e of moderate.slice(0, 3)) {
+    const line = conflictLine(e.c, a, b);
+    if (!annoyances.includes(line) && !conflicts.includes(line)) {
+      annoyances.push(line);
+    }
+  }
+  for (const e of severe.slice(0, 3)) {
     const line = conflictLine(e.c, a, b);
     if (!conflicts.includes(line)) conflicts.push(line);
   }
@@ -93,5 +125,5 @@ export function buildInsights(
   if (reasons.length === 0) {
     reasons.push("You have a balanced, workable mix of habits.");
   }
-  return { reasons, conflicts };
+  return { reasons, annoyances, conflicts };
 }

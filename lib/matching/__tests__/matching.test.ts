@@ -5,8 +5,10 @@ import { scorePair, rankCandidates } from "@/lib/matching";
 import {
   simLinear,
   simCircularTime,
+  simTolerantTime,
   simFreq,
   noiseScore,
+  bathroomScore,
   dealbreakerConflicts,
   exhibits,
 } from "@/lib/matching/scoring";
@@ -37,6 +39,32 @@ describe("similarity atoms", () => {
   });
 });
 
+describe("simTolerantTime (forgiving sleep/wake curve)", () => {
+  it("forgives ≤1 hour differences completely", () => {
+    const base = 23 * 60;
+    expect(simTolerantTime(base, base)).toBe(100);
+    expect(simTolerantTime(base, base + 30)).toBe(100);
+    expect(simTolerantTime(base, base + 60)).toBe(100);
+  });
+
+  it("only mildly penalises 2-hour differences", () => {
+    const base = 23 * 60;
+    expect(simTolerantTime(base, base + 120)).toBeGreaterThanOrEqual(90);
+  });
+
+  it("moderately penalises 4-hour differences", () => {
+    const base = 23 * 60;
+    const s = simTolerantTime(base, base + 240);
+    expect(s).toBeGreaterThanOrEqual(70);
+    expect(s).toBeLessThanOrEqual(80);
+  });
+
+  it("heavily penalises 8+ hour differences", () => {
+    const base = 23 * 60;
+    expect(simTolerantTime(base, base + 480)).toBeLessThanOrEqual(35);
+  });
+});
+
 describe("noiseScore (asymmetric clash model)", () => {
   it("craters when both are loud and intolerant", () => {
     const a = defaultQuestionnaire("a");
@@ -55,12 +83,29 @@ describe("noiseScore (asymmetric clash model)", () => {
   });
 });
 
+describe("bathroomScore (shared resource — different is better)", () => {
+  it("rewards different bath timings over identical ones", () => {
+    const same = defaultQuestionnaire("a");
+    const other = defaultQuestionnaire("b");
+    same.bathroom.timing = "morning";
+    other.bathroom.timing = "night";
+    const sameSame = clone(same);
+    expect(bathroomScore(same, other)).toBeGreaterThan(bathroomScore(same, sameSame));
+  });
+
+  it("does not crater on identical timing — hygiene/duration still count", () => {
+    const a = defaultQuestionnaire("a");
+    const b = defaultQuestionnaire("b");
+    expect(bathroomScore(a, b)).toBeGreaterThanOrEqual(50);
+  });
+});
+
 describe("scorePair", () => {
-  it("near-identical profiles score very high with no dealbreaker", () => {
+  it("near-identical profiles still score very high (allowing for bath clash)", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
     const res = scorePair(a, b);
-    expect(res.overall).toBeGreaterThanOrEqual(95);
+    expect(res.overall).toBeGreaterThanOrEqual(88);
     expect(res.dealbreaker).toBe(false);
     expect(res.reasons.length).toBeGreaterThan(0);
     expect(res.radar).toHaveLength(12);
@@ -80,19 +125,32 @@ describe("scorePair", () => {
     }
   });
 
-  it("an absolute dealbreaker craters an otherwise great match", () => {
+  it("an absolute dealbreaker craters an otherwise great match — but not below the floor", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
     const before = scorePair(a, b).overall;
 
-    a.dealbreakers.substances = "dealbreaker"; // a can't stand it
-    b.dealbreakers.substances = "okay"; // b is fine with it → exhibits
+    a.dealbreakers.substances = "dealbreaker";
+    b.dealbreakers.substances = "okay"; // b exhibits substances
     const res = scorePair(a, b);
 
-    expect(before).toBeGreaterThanOrEqual(95);
+    expect(before).toBeGreaterThanOrEqual(88);
     expect(res.dealbreaker).toBe(true);
-    expect(res.overall).toBeLessThan(30);
+    expect(res.overall).toBeLessThan(40);
+    // Floor — should never crater below 22% solely because of dealbreakers.
+    expect(res.overall).toBeGreaterThanOrEqual(22);
     expect(res.conflicts.some((c) => /substances/i.test(c))).toBe(true);
+  });
+
+  it("annoyance-level dealbreakers go to annoyances, not conflicts", () => {
+    const a = defaultQuestionnaire("a");
+    const b = defaultQuestionnaire("b");
+    a.dealbreakers.loudMusic = "annoying";
+    b.noise.reelsMusic = "always"; // b exhibits loud music
+    const res = scorePair(a, b);
+    expect(res.dealbreaker).toBe(false);
+    expect(res.annoyances.some((s) => /music/i.test(s))).toBe(true);
+    expect(res.conflicts.some((s) => /music/i.test(s))).toBe(false);
   });
 
   it("detects exhibited habits used for dealbreakers", () => {
@@ -106,11 +164,16 @@ describe("scorePair", () => {
 
     const conflicts = dealbreakerConflicts(
       Object.assign(defaultQuestionnaire("x"), {
-        dealbreakers: { ...defaultQuestionnaire("x").dealbreakers, lateSleeping: "dealbreaker" },
+        dealbreakers: {
+          ...defaultQuestionnaire("x").dealbreakers,
+          lateSleeping: "dealbreaker",
+        },
       }),
       nightOwl,
     );
-    expect(conflicts.some((c) => c.key === "lateSleeping" && c.severity === "hard")).toBe(true);
+    expect(
+      conflicts.some((c) => c.key === "lateSleeping" && c.severity === "hard"),
+    ).toBe(true);
   });
 });
 
@@ -118,12 +181,10 @@ describe("importance weighting changes ranking", () => {
   it("flagging sleep as important favours the sleep-aligned candidate", () => {
     const me = defaultQuestionnaire("me");
 
-    // X: same sleep as me, very different spending.
     const x = clone(me);
     x.uid = "x";
     x.spending.monthly = 36000;
 
-    // Y: very different sleep, same spending as me.
     const y = clone(me);
     y.uid = "y";
     y.sleep = { sleepTime: 240, wakeTime: 720, naps: "always" };

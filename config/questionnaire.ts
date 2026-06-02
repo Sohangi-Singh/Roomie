@@ -470,13 +470,13 @@ export const STEPS: Step[] = [
     id: "importance",
     kind: "importance",
     title: "What matters most?",
-    subtitle: "Tap to mark the areas you care about — we weight these higher.",
+    subtitle: "Tap on one, 2 times to increase the intensity.",
   },
   {
     id: "dealbreakers",
     kind: "dealbreakers",
     title: "Any dealbreakers?",
-    subtitle: "Absolute dealbreakers strongly filter your matches.",
+    subtitle: "Choose dealbreakers carefully and minimally.",
   },
 ];
 

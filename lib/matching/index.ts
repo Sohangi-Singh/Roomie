@@ -20,7 +20,11 @@ export interface MatchResult {
   overall: number;
   categories: Record<Category, number>;
   radar: RadarPoint[];
+  /** Positive compatibility — "Why you match". */
   reasons: string[];
+  /** Soft mismatches — "Might be a problem, but is fine". */
+  annoyances: string[];
+  /** Hard dealbreaker conflicts — "Potential clashes". */
   conflicts: string[];
   /** True when an absolute dealbreaker conflict exists. */
   dealbreaker: boolean;
@@ -45,6 +49,10 @@ export function scorePair(a: Questionnaire, b: Questionnaire): MatchResult {
   overall -= 5 * soft;
   overall = Math.max(0, Math.min(100, Math.round(overall)));
 
+  // Dealbreaker floor — even with hard conflicts, never drop below 22% so
+  // people can still discover and message each other.
+  if (hard > 0 && overall < 22) overall = 22;
+
   const radar: RadarPoint[] = (Object.keys(categories) as Category[]).map((c) => ({
     category: c,
     label: CATEGORY_META[c].label,
@@ -59,6 +67,7 @@ export function scorePair(a: Questionnaire, b: Questionnaire): MatchResult {
     categories,
     radar,
     reasons: insights.reasons,
+    annoyances: insights.annoyances,
     conflicts: insights.conflicts,
     dealbreaker: hard > 0,
   };
