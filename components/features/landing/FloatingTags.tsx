@@ -32,12 +32,12 @@ interface Tag {
 }
 
 const TAGS: Tag[] = [
-  { label: "Sleeps at 11 sharp", emoji: "🌙", tone: "solid",   size: "md", left:  4, top:  3, rotate: -5, dx: 12, dy:  8, duration: 6.8, delay: 0.0 },
+  { label: "Sleeps at 12 sharp", emoji: "🌙", tone: "solid",   size: "md", left:  4, top:  3, rotate: -5, dx: 12, dy:  8, duration: 6.8, delay: 0.0 },
   { label: "Headphones, always", emoji: "🎧", tone: "outline", size: "sm", left: 58, top:  2, rotate:  4, dx: 10, dy: 12, duration: 7.4, delay: 0.4 },
   { label: "Library mole",       emoji: "📚", tone: "sand",    size: "lg", left: 10, top: 22, rotate: -3, dx: 14, dy:  6, duration: 6.2, delay: 0.8 },
-  { label: "Bed always made",    emoji: "✨", tone: "success", size: "md", left: 60, top: 26, rotate:  6, dx:  8, dy: 10, duration: 7.0, delay: 1.2 },
+  { label: "Bath time aligned",  emoji: "🚿", tone: "success", size: "md", left: 60, top: 26, rotate:  6, dx:  8, dy: 10, duration: 7.0, delay: 1.2 },
   { label: "6 AM gym",           emoji: "🏋️", tone: "soft",    size: "sm", left:  2, top: 44, rotate:  5, dx: 12, dy:  8, duration: 6.6, delay: 0.6 },
-  { label: "Plant parent",       emoji: "🪴", tone: "outline", size: "md", left: 48, top: 44, rotate: -4, dx: 10, dy: 12, duration: 7.6, delay: 1.5 },
+  { label: "Gaming at 3 AM",     emoji: "🎮", tone: "outline", size: "md", left: 48, top: 44, rotate: -4, dx: 10, dy: 12, duration: 7.6, delay: 1.5 },
   { label: "Splits 50 / 50",     emoji: "💸", tone: "solid",   size: "sm", left: 66, top: 58, rotate:  4, dx:  8, dy: 10, duration: 6.3, delay: 0.2 },
   { label: "Café over club",     emoji: "☕", tone: "soft",    size: "md", left: 12, top: 60, rotate: -6, dx: 12, dy:  6, duration: 7.2, delay: 1.0 },
   { label: "Cooks at 1 AM",      emoji: "🍜", tone: "warning", size: "sm", left: 56, top: 72, rotate:  3, dx: 10, dy: 12, duration: 6.8, delay: 0.5 },

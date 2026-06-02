@@ -17,7 +17,6 @@ import { LinkButton, Card } from "@/components/ui";
 import { RotatingStat } from "@/components/features/landing/RotatingStat";
 import { SplitComparison } from "@/components/features/landing/SplitComparison";
 import { FloatingTags } from "@/components/features/landing/FloatingTags";
-import { MatchPreview } from "@/components/features/landing/MatchPreview";
 
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 16 },
@@ -202,21 +201,6 @@ export default function LandingPage() {
               ))}
             </ul>
           </Card>
-        </Reveal>
-      </section>
-
-      {/* a peek at a match (moved Aanya card) */}
-      <section className="relative pt-16">
-        <Reveal>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.22em] text-faint">
-            A peek inside
-          </p>
-          <h2 className="font-display text-xl font-semibold">
-            What a match looks like.
-          </h2>
-        </Reveal>
-        <Reveal delay={0.1} className="mt-4">
-          <MatchPreview />
         </Reveal>
       </section>
 
