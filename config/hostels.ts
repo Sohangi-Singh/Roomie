@@ -4,8 +4,8 @@ export const HOSTELS: Record<
   HostelId,
   { id: HostelId; name: string; alias: string }
 > = {
-  uniworld1: { id: "uniworld1", name: "Universe 1", alias: "Neeladri" },
-  uniworld2: { id: "uniworld2", name: "Universe 2", alias: "Velankani" },
+  uniworld1: { id: "uniworld1", name: "Uniworld 1", alias: "Neeladri" },
+  uniworld2: { id: "uniworld2", name: "Uniworld 2", alias: "Velankani" },
 };
 
 export const HOSTEL_LIST = Object.values(HOSTELS);
@@ -85,7 +85,7 @@ export function roomTypesOverlap(a: RoomType[], b: RoomType[]): boolean {
 
 export function formatHostelPrefs(prefs: HostelId[]): string {
   if (prefs.length === 0) return "Not set";
-  if (prefs.length === 2) return "Either Universe";
+  if (prefs.length === 2) return "Either hostel";
   return HOSTELS[prefs[0]].name;
 }
 

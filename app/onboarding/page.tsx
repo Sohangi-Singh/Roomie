@@ -446,13 +446,13 @@ function LivingStep({
             selected={hostelPrefs.includes("uniworld1")}
             onClick={() => toggleHostel("uniworld1")}
           >
-            Universe 1 · Neeladri
+            Uniworld 1 · Neeladri
           </Chip>
           <Chip
             selected={hostelPrefs.includes("uniworld2")}
             onClick={() => toggleHostel("uniworld2")}
           >
-            Universe 2 · Velankani
+            Uniworld 2 · Velankani
           </Chip>
           <Chip selected={bothSelected} onClick={setNotDecided}>
             Not decided yet

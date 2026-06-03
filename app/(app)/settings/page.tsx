@@ -193,13 +193,13 @@ export default function SettingsPage() {
               selected={form.hostelPrefs.includes("uniworld1")}
               onClick={() => toggleHostel("uniworld1")}
             >
-              Universe 1 · Neeladri
+              Uniworld 1 · Neeladri
             </Chip>
             <Chip
               selected={form.hostelPrefs.includes("uniworld2")}
               onClick={() => toggleHostel("uniworld2")}
             >
-              Universe 2 · Velankani
+              Uniworld 2 · Velankani
             </Chip>
             <Chip selected={bothHostels} onClick={setNotDecided}>
               Not decided yet
