@@ -4,7 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { TriangleAlert } from "lucide-react";
 import { Avatar, Card, ProgressRing } from "@/components/ui";
-import { HOSTELS, ROOM_TYPE_LABELS } from "@/config/hostels";
+import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
 import type { RankedMatch } from "@/hooks/useMatches";
 
 export function MatchCard({
@@ -28,7 +28,8 @@ export function MatchCard({
             <p className="truncate font-medium">{user.fullName}</p>
             <p className="truncate text-sm text-muted">Year {user.year}</p>
             <p className="truncate text-xs text-faint">
-              {HOSTELS[user.hostel].alias} · {ROOM_TYPE_LABELS[user.roomType]}
+              {formatHostelPrefs(user.hostelPrefs)} ·{" "}
+              {formatRoomTypePrefs(user.roomTypePrefs)}
             </p>
             {result.dealbreaker && (
               <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger">

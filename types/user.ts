@@ -12,8 +12,10 @@ export interface User {
   fullName: string;
   year: Year;
   gender: Gender;
-  hostel: HostelId;
-  roomType: RoomType;
+  /** Hostels the user is open to living in (1 or 2). */
+  hostelPrefs: HostelId[];
+  /** Room types the user is open to (subset of the allowed union for their hostelPrefs + gender). */
+  roomTypePrefs: RoomType[];
   contactNumber: string;
   instagram?: string;
   bio?: string;
@@ -30,8 +32,8 @@ export type UserProfileInput = Pick<
   | "fullName"
   | "year"
   | "gender"
-  | "hostel"
-  | "roomType"
+  | "hostelPrefs"
+  | "roomTypePrefs"
   | "contactNumber"
   | "instagram"
   | "bio"

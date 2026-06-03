@@ -19,7 +19,14 @@ import { RequireAuth } from "@/components/features/RequireAuth";
 import { QuestionStep } from "@/components/features/QuestionStep";
 import { CategoryIcon } from "@/components/features/CategoryIcon";
 import { Brand } from "@/components/features/Brand";
-import { Button, Input, Textarea, Field, Segmented } from "@/components/ui";
+import {
+  Button,
+  Input,
+  Textarea,
+  Field,
+  Segmented,
+  Chip,
+} from "@/components/ui";
 import {
   STEPS,
   CATEGORY_META,
@@ -27,16 +34,14 @@ import {
 } from "@/config/questionnaire";
 import { YEARS } from "@/config/college";
 import {
-  HOSTEL_LIST,
   ROOM_TYPE_LABELS,
-  allowedRoomTypes,
+  allowedRoomTypesForHostels,
 } from "@/config/hostels";
 import { useOnboardingStore } from "@/stores/onboardingStore";
 import { useAuthStore } from "@/stores/authStore";
 import { useMatchesStore } from "@/stores/matchesStore";
 import { saveUser, saveQuestionnaire } from "@/lib/firebase/db";
 import type { PublicProfile } from "@/lib/api/types";
-import { cn } from "@/lib/utils/cn";
 import type {
   Gender,
   HostelId,
@@ -54,8 +59,10 @@ const profileSchema = z.object({
   fullName: z.string().min(2),
   gender: z.enum(["male", "female"]),
   year: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
-  hostel: z.enum(["uniworld1", "uniworld2"]),
-  roomType: z.enum(["small_double", "large_double", "triple"]),
+  hostelPrefs: z.array(z.enum(["uniworld1", "uniworld2"])).min(1),
+  roomTypePrefs: z
+    .array(z.enum(["small_double", "large_double", "triple"]))
+    .min(1),
   contactNumber: z.string().regex(/^\d{10}$/),
   instagram: z.string().optional(),
   bio: z.string().optional(),
@@ -74,8 +81,10 @@ function validateStep(step: number, p: Partial<UserProfileInput>): boolean {
     );
   if (step === 1)
     return Boolean(
-      p.hostel &&
-        p.roomType &&
+      p.hostelPrefs &&
+        p.hostelPrefs.length > 0 &&
+        p.roomTypePrefs &&
+        p.roomTypePrefs.length > 0 &&
         p.contactNumber &&
         /^\d{10}$/.test(p.contactNumber),
     );
@@ -197,8 +206,8 @@ function OnboardingFlow() {
         fullName: p.fullName,
         year: p.year,
         gender: p.gender,
-        hostel: p.hostel,
-        roomType: p.roomType,
+        hostelPrefs: p.hostelPrefs,
+        roomTypePrefs: p.roomTypePrefs,
         contactNumber: p.contactNumber,
         onboarded: true,
         createdAt: now,
@@ -217,8 +226,8 @@ function OnboardingFlow() {
         fullName: user.fullName,
         year: user.year,
         gender: user.gender,
-        hostel: user.hostel,
-        roomType: user.roomType,
+        hostelPrefs: user.hostelPrefs,
+        roomTypePrefs: user.roomTypePrefs,
         ...(user.photoURL ? { photoURL: user.photoURL } : {}),
         ...(user.bio ? { bio: user.bio } : {}),
       };
@@ -359,7 +368,7 @@ function IdentityStep({
           ]}
           value={profile.gender ?? ""}
           onChange={(v) =>
-            update({ gender: v as Gender, roomType: undefined })
+            update({ gender: v as Gender, roomTypePrefs: [] })
           }
         />
         <p className="mt-1.5 text-xs text-faint">
@@ -386,57 +395,87 @@ function LivingStep({
   update: (p: Partial<UserProfileInput>) => void;
 }) {
   const gender = profile.gender;
-  const hostel = profile.hostel;
-  const allowed: RoomType[] =
-    gender && hostel ? allowedRoomTypes(hostel, gender) : [];
+  const hostelPrefs = profile.hostelPrefs ?? [];
+  const roomTypePrefs = profile.roomTypePrefs ?? [];
+  const allowed: RoomType[] = gender
+    ? allowedRoomTypesForHostels(hostelPrefs, gender)
+    : [];
+  const bothSelected =
+    hostelPrefs.includes("uniworld1") && hostelPrefs.includes("uniworld2");
+
+  const toggleHostel = (h: HostelId) => {
+    let next: HostelId[];
+    if (hostelPrefs.includes(h)) {
+      if (hostelPrefs.length === 1) return;
+      next = hostelPrefs.filter((x) => x !== h);
+    } else {
+      next = [...hostelPrefs, h];
+    }
+    const newAllowed = gender ? allowedRoomTypesForHostels(next, gender) : [];
+    update({
+      hostelPrefs: next,
+      roomTypePrefs: roomTypePrefs.filter((rt) => newAllowed.includes(rt)),
+    });
+  };
+
+  const setNotDecided = () => {
+    const all: HostelId[] = ["uniworld1", "uniworld2"];
+    update({ hostelPrefs: all });
+  };
+
+  const toggleRoom = (rt: RoomType) => {
+    let next: RoomType[];
+    if (roomTypePrefs.includes(rt)) {
+      if (roomTypePrefs.length === 1) return;
+      next = roomTypePrefs.filter((x) => x !== rt);
+    } else {
+      next = [...roomTypePrefs, rt];
+    }
+    update({ roomTypePrefs: next });
+  };
 
   return (
     <div className="space-y-6">
       <div>
-        <p className="mb-2 text-sm font-medium">Hostel</p>
-        <Segmented
-          options={HOSTEL_LIST.map((h) => ({
-            value: h.id,
-            label: `${h.name} · ${h.alias}`,
-          }))}
-          value={hostel ?? ""}
-          onChange={(v) => {
-            const h = v as HostelId;
-            const opts = gender ? allowedRoomTypes(h, gender) : [];
-            update({
-              hostel: h,
-              roomType:
-                profile.roomType && opts.includes(profile.roomType)
-                  ? profile.roomType
-                  : opts[0],
-            });
-          }}
-        />
+        <p className="mb-1 text-sm font-medium">Hostel preference</p>
+        <p className="mb-2.5 text-xs text-faint">
+          Pick any you&apos;re open to.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Chip
+            selected={hostelPrefs.includes("uniworld1")}
+            onClick={() => toggleHostel("uniworld1")}
+          >
+            Universe 1 · Neeladri
+          </Chip>
+          <Chip
+            selected={hostelPrefs.includes("uniworld2")}
+            onClick={() => toggleHostel("uniworld2")}
+          >
+            Universe 2 · Velankani
+          </Chip>
+          <Chip selected={bothSelected} onClick={setNotDecided}>
+            Not decided yet
+          </Chip>
+        </div>
       </div>
 
-      {hostel && gender && (
+      {hostelPrefs.length > 0 && gender && (
         <div>
-          <p className="mb-2 text-sm font-medium">Room type</p>
-          <div className="grid gap-2">
-            {allowed.map((rt) => {
-              const selected = profile.roomType === rt;
-              return (
-                <button
-                  key={rt}
-                  type="button"
-                  onClick={() => update({ roomType: rt })}
-                  className={cn(
-                    "flex items-center justify-between rounded-2xl p-4 text-left text-sm font-medium transition-colors",
-                    selected
-                      ? "bg-accent-500 text-canvas"
-                      : "bg-surface shadow-soft ring-1 ring-line",
-                  )}
-                >
-                  {ROOM_TYPE_LABELS[rt]}
-                  {selected && <Check className="size-4" />}
-                </button>
-              );
-            })}
+          <p className="mb-1 text-sm font-medium">Room type preference</p>
+          <p className="mb-2.5 text-xs text-faint">
+            Pick any you&apos;re open to.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {allowed.map((rt) => (
+              <Chip
+                key={rt}
+                selected={roomTypePrefs.includes(rt)}
+                onClick={() => toggleRoom(rt)}
+              >
+                {ROOM_TYPE_LABELS[rt]}
+              </Chip>
+            ))}
           </div>
         </div>
       )}

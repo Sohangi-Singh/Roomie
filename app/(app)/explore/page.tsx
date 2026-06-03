@@ -12,8 +12,9 @@ import { BottomSheet, SkeletonCard, Button } from "@/components/ui";
 function passes(m: RankedMatch, f: ExploreFilters): boolean {
   const { user, facets, result } = m;
   if (f.year !== "any" && user.year !== f.year) return false;
-  if (f.hostel !== "any" && user.hostel !== f.hostel) return false;
-  if (f.roomType !== "any" && user.roomType !== f.roomType) return false;
+  if (f.hostel !== "any" && !user.hostelPrefs.includes(f.hostel)) return false;
+  if (f.roomType !== "any" && !user.roomTypePrefs.includes(f.roomType))
+    return false;
   if (f.sleep !== "any" && facets.sleep !== f.sleep) return false;
   if (f.cleanliness === "relaxed" && facets.cleanliness !== "relaxed") return false;
   if (f.cleanliness === "tidy" && facets.cleanliness !== "tidy") return false;

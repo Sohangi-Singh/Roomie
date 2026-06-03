@@ -2,8 +2,9 @@ import { NextResponse, type NextRequest } from "next/server";
 import { adminDb, uidFromAuthHeader } from "@/lib/firebase/admin";
 import { rankCandidates } from "@/lib/matching";
 import { exhibits } from "@/lib/matching/scoring";
+import { hostelsOverlap, roomTypesOverlap } from "@/config/hostels";
 import type { ApiMatch, MatchFacets, PublicProfile } from "@/lib/api/types";
-import type { Gender, Questionnaire, Year } from "@/types";
+import type { Gender, HostelId, Questionnaire, RoomType } from "@/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +37,8 @@ export async function GET(req: NextRequest) {
 
   const meData = meSnap.data() as StoredQ;
   const myGender = meData._gender;
-  const myYear = meData._profile?.year as Year | undefined;
+  const myHostels: HostelId[] = meData._profile?.hostelPrefs ?? [];
+  const myRooms: RoomType[] = meData._profile?.roomTypePrefs ?? [];
   if (!myGender) return NextResponse.json({ matches: [] });
 
   // One read per same-gender candidate — no separate user-doc reads.
@@ -64,11 +66,23 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  // Prioritise same-year, then by score within each tier.
+  // Compatibility tier — hostel/room preference overlap dominates the order:
+  //   0 = both hostel AND room overlap  (you can realistically room together)
+  //   1 = one of hostel or room overlaps
+  //   2 = neither overlaps              (still visible, just ranked lower)
+  // Within a tier, sort by overall compatibility score descending.
+  function tierFor(theirH: HostelId[], theirR: RoomType[]): number {
+    const h = hostelsOverlap(myHostels, theirH);
+    const r = roomTypesOverlap(myRooms, theirR);
+    if (h && r) return 0;
+    if (h || r) return 1;
+    return 2;
+  }
+
   matches.sort((a, b) => {
-    const sa = a.user.year === myYear ? 0 : 1;
-    const sb = b.user.year === myYear ? 0 : 1;
-    if (sa !== sb) return sa - sb;
+    const ta = tierFor(a.user.hostelPrefs, a.user.roomTypePrefs);
+    const tb = tierFor(b.user.hostelPrefs, b.user.roomTypePrefs);
+    if (ta !== tb) return ta - tb;
     return b.result.overall - a.result.overall;
   });
 

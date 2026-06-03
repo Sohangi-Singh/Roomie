@@ -16,7 +16,7 @@ import {
   SkeletonCard,
 } from "@/components/ui";
 import {
-  HOSTEL_LIST,
+  HOSTELS,
   ROOM_TYPE_LABELS,
   allowedRoomTypes,
   roomTypeToGroupSize,
@@ -147,17 +147,26 @@ function CreateGroupForm({
   onCreated: () => Promise<void>;
 }) {
   const [name, setName] = useState("");
-  const [hostel, setHostel] = useState<HostelId>(me.hostel);
-  const allowed = allowedRoomTypes(hostel, me.gender);
+  // Pick the first hostel the user is open to, defaulting to U1.
+  const [hostel, setHostel] = useState<HostelId>(
+    me.hostelPrefs[0] ?? "uniworld1",
+  );
+  // The user's room-type prefs filtered to what's allowed in this hostel.
+  const allowedForHostel = allowedRoomTypes(hostel, me.gender);
+  const allowed: RoomType[] = allowedForHostel.filter((rt) =>
+    me.roomTypePrefs.includes(rt),
+  );
   const [roomType, setRoomType] = useState<RoomType>(
-    allowed.includes(me.roomType) ? me.roomType : allowed[0],
+    allowed[0] ?? allowedForHostel[0],
   );
   const [busy, setBusy] = useState(false);
 
   const changeHostel = (h: HostelId) => {
     setHostel(h);
     const opts = allowedRoomTypes(h, me.gender);
-    if (!opts.includes(roomType)) setRoomType(opts[0]);
+    const intersect = opts.filter((rt) => me.roomTypePrefs.includes(rt));
+    const pool = intersect.length > 0 ? intersect : opts;
+    if (!pool.includes(roomType)) setRoomType(pool[0]);
   };
 
   const submit = async () => {
@@ -196,7 +205,10 @@ function CreateGroupForm({
       <div>
         <p className="mb-2 text-sm font-medium">Hostel</p>
         <Segmented
-          options={HOSTEL_LIST.map((h) => ({ value: h.id, label: h.alias }))}
+          options={me.hostelPrefs.map((h) => ({
+            value: h,
+            label: HOSTELS[h].alias,
+          }))}
           value={hostel}
           onChange={(v) => changeHostel(v as HostelId)}
         />

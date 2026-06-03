@@ -19,7 +19,7 @@ import { RadarChart } from "@/components/features/RadarChart";
 import { InsightList } from "@/components/features/InsightList";
 import { CategoryBreakdown } from "@/components/features/CategoryBreakdown";
 import { ConnectButton } from "@/components/features/ConnectButton";
-import { HOSTELS, ROOM_TYPE_LABELS } from "@/config/hostels";
+import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
 import { PERSONA_OPTIONS } from "@/config/questionnaire";
 import { formatTime } from "@/lib/utils/format";
 import type { Questionnaire, User } from "@/types";
@@ -122,10 +122,8 @@ export default function ProfilePage() {
         </h1>
         <p className="text-sm text-muted">Year {user.year}</p>
         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
-          <Badge>
-            {HOSTELS[user.hostel].name} · {HOSTELS[user.hostel].alias}
-          </Badge>
-          <Badge>{ROOM_TYPE_LABELS[user.roomType]}</Badge>
+          <Badge>{formatHostelPrefs(user.hostelPrefs)}</Badge>
+          <Badge>{formatRoomTypePrefs(user.roomTypePrefs)}</Badge>
         </div>
         {user.bio && (
           <p className="mt-3 max-w-sm text-sm leading-relaxed text-muted">

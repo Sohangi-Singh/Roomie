@@ -22,9 +22,8 @@ import {
 import { useThemeStore } from "@/stores/themeStore";
 import { Brand } from "@/components/features/Brand";
 import {
-  HOSTEL_LIST,
   ROOM_TYPE_LABELS,
-  allowedRoomTypes,
+  allowedRoomTypesForHostels,
 } from "@/config/hostels";
 import { YEARS, COLLEGE_NAME } from "@/config/college";
 import { defaultQuestionnaire } from "@/config/questionnaire";
@@ -42,8 +41,8 @@ export default function SettingsPage() {
   const [form, setForm] = useState(() => ({
     fullName: me?.fullName ?? "",
     year: me?.year ?? (1 as Year),
-    hostel: me?.hostel ?? ("uniworld1" as HostelId),
-    roomType: me?.roomType ?? ("small_double" as RoomType),
+    hostelPrefs: me?.hostelPrefs ?? (["uniworld1"] as HostelId[]),
+    roomTypePrefs: me?.roomTypePrefs ?? (["small_double"] as RoomType[]),
     contactNumber: me?.contactNumber ?? "",
     instagram: me?.instagram ?? "",
     bio: me?.bio ?? "",
@@ -53,21 +52,46 @@ export default function SettingsPage() {
 
   if (!me) return null;
 
-  const allowed = allowedRoomTypes(form.hostel, me.gender);
+  const allowed = allowedRoomTypesForHostels(form.hostelPrefs, me.gender);
   const update = (patch: Partial<typeof form>) => {
     setForm((f) => ({ ...f, ...patch }));
     setSaved(false);
   };
-  const changeHostel = (h: HostelId) => {
-    const opts = allowedRoomTypes(h, me.gender);
+  const bothHostels =
+    form.hostelPrefs.includes("uniworld1") &&
+    form.hostelPrefs.includes("uniworld2");
+  const toggleHostel = (h: HostelId) => {
+    let next: HostelId[];
+    if (form.hostelPrefs.includes(h)) {
+      if (form.hostelPrefs.length === 1) return;
+      next = form.hostelPrefs.filter((x) => x !== h);
+    } else {
+      next = [...form.hostelPrefs, h];
+    }
+    const newAllowed = allowedRoomTypesForHostels(next, me.gender);
     update({
-      hostel: h,
-      roomType: opts.includes(form.roomType) ? form.roomType : opts[0],
+      hostelPrefs: next,
+      roomTypePrefs: form.roomTypePrefs.filter((rt) => newAllowed.includes(rt)),
     });
+  };
+  const setNotDecided = () => {
+    update({ hostelPrefs: ["uniworld1", "uniworld2"] });
+  };
+  const toggleRoom = (rt: RoomType) => {
+    let next: RoomType[];
+    if (form.roomTypePrefs.includes(rt)) {
+      if (form.roomTypePrefs.length === 1) return;
+      next = form.roomTypePrefs.filter((x) => x !== rt);
+    } else {
+      next = [...form.roomTypePrefs, rt];
+    }
+    update({ roomTypePrefs: next });
   };
 
   const valid =
     form.fullName.trim().length >= 2 &&
+    form.hostelPrefs.length > 0 &&
+    form.roomTypePrefs.length > 0 &&
     /^\d{10}$/.test(form.contactNumber);
 
   const save = async () => {
@@ -77,8 +101,8 @@ export default function SettingsPage() {
       const patch: Partial<User> = {
         fullName: form.fullName.trim(),
         year: form.year,
-        hostel: form.hostel,
-        roomType: form.roomType,
+        hostelPrefs: form.hostelPrefs,
+        roomTypePrefs: form.roomTypePrefs,
         contactNumber: form.contactNumber,
         instagram: form.instagram.trim(),
         bio: form.bio.trim(),
@@ -88,8 +112,8 @@ export default function SettingsPage() {
         fullName: form.fullName.trim(),
         year: form.year,
         gender: me.gender,
-        hostel: form.hostel,
-        roomType: form.roomType,
+        hostelPrefs: form.hostelPrefs,
+        roomTypePrefs: form.roomTypePrefs,
         ...(me.photoURL ? { photoURL: me.photoURL } : {}),
         ...(form.bio.trim() ? { bio: form.bio.trim() } : {}),
       };
@@ -108,8 +132,8 @@ export default function SettingsPage() {
         fullName: me.fullName,
         year: me.year,
         gender: me.gender,
-        hostel: me.hostel,
-        roomType: me.roomType,
+        hostelPrefs: me.hostelPrefs,
+        roomTypePrefs: me.roomTypePrefs,
         contactNumber: me.contactNumber,
         instagram: me.instagram,
         bio: me.bio,
@@ -160,21 +184,39 @@ export default function SettingsPage() {
       <Card className="mt-4 space-y-5">
         <h2 className="font-display text-lg font-semibold">Living</h2>
         <div>
-          <p className="mb-2 text-sm font-medium">Hostel</p>
-          <Segmented
-            options={HOSTEL_LIST.map((h) => ({ value: h.id, label: h.alias }))}
-            value={form.hostel}
-            onChange={(v) => changeHostel(v as HostelId)}
-          />
+          <p className="mb-1 text-sm font-medium">Hostel preference</p>
+          <p className="mb-2.5 text-xs text-faint">
+            Pick any you&apos;re open to.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Chip
+              selected={form.hostelPrefs.includes("uniworld1")}
+              onClick={() => toggleHostel("uniworld1")}
+            >
+              Universe 1 · Neeladri
+            </Chip>
+            <Chip
+              selected={form.hostelPrefs.includes("uniworld2")}
+              onClick={() => toggleHostel("uniworld2")}
+            >
+              Universe 2 · Velankani
+            </Chip>
+            <Chip selected={bothHostels} onClick={setNotDecided}>
+              Not decided yet
+            </Chip>
+          </div>
         </div>
         <div>
-          <p className="mb-2 text-sm font-medium">Room type</p>
+          <p className="mb-1 text-sm font-medium">Room type preference</p>
+          <p className="mb-2.5 text-xs text-faint">
+            Pick any you&apos;re open to.
+          </p>
           <div className="flex flex-wrap gap-2">
             {allowed.map((rt) => (
               <Chip
                 key={rt}
-                selected={form.roomType === rt}
-                onClick={() => update({ roomType: rt })}
+                selected={form.roomTypePrefs.includes(rt)}
+                onClick={() => toggleRoom(rt)}
               >
                 {ROOM_TYPE_LABELS[rt]}
               </Chip>

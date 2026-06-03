@@ -4,8 +4,8 @@ export const HOSTELS: Record<
   HostelId,
   { id: HostelId; name: string; alias: string }
 > = {
-  uniworld1: { id: "uniworld1", name: "Uniworld 1", alias: "Neeladri" },
-  uniworld2: { id: "uniworld2", name: "Uniworld 2", alias: "Velankani" },
+  uniworld1: { id: "uniworld1", name: "Universe 1", alias: "Neeladri" },
+  uniworld2: { id: "uniworld2", name: "Universe 2", alias: "Velankani" },
 };
 
 export const HOSTEL_LIST = Object.values(HOSTELS);
@@ -14,6 +14,12 @@ export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
   small_double: "Small Double Sharing",
   large_double: "Large Double Sharing",
   triple: "Triple Sharing",
+};
+
+export const ROOM_TYPE_SHORT: Record<RoomType, string> = {
+  small_double: "Small Double",
+  large_double: "Large Double",
+  triple: "Triple",
 };
 
 /**
@@ -54,4 +60,38 @@ export function isRoomTypeAllowed(
 /** Triple sharing → 3 people; any double → 2. */
 export function roomTypeToGroupSize(roomType: RoomType): 2 | 3 {
   return roomType === "triple" ? 3 : 2;
+}
+
+/** Union of allowed room types across any of the user's selected hostels. */
+export function allowedRoomTypesForHostels(
+  hostels: HostelId[],
+  gender: Gender,
+): RoomType[] {
+  const set = new Set<RoomType>();
+  for (const h of hostels) {
+    for (const rt of ROOM_RULES[h][gender]) set.add(rt);
+  }
+  const order: RoomType[] = ["large_double", "small_double", "triple"];
+  return order.filter((rt) => set.has(rt));
+}
+
+export function hostelsOverlap(a: HostelId[], b: HostelId[]): boolean {
+  return a.some((h) => b.includes(h));
+}
+
+export function roomTypesOverlap(a: RoomType[], b: RoomType[]): boolean {
+  return a.some((r) => b.includes(r));
+}
+
+export function formatHostelPrefs(prefs: HostelId[]): string {
+  if (prefs.length === 0) return "Not set";
+  if (prefs.length === 2) return "Either Universe";
+  return HOSTELS[prefs[0]].name;
+}
+
+export function formatRoomTypePrefs(prefs: RoomType[]): string {
+  if (prefs.length === 0) return "Not set";
+  if (prefs.length === 3) return "Any sharing";
+  if (prefs.length === 1) return ROOM_TYPE_LABELS[prefs[0]];
+  return prefs.map((rt) => ROOM_TYPE_SHORT[rt]).join(" / ");
 }

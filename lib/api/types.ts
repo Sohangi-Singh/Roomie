@@ -7,8 +7,8 @@ export interface PublicProfile {
   fullName: string;
   year: Year;
   gender: Gender;
-  hostel: HostelId;
-  roomType: RoomType;
+  hostelPrefs: HostelId[];
+  roomTypePrefs: RoomType[];
   photoURL?: string;
   bio?: string;
 }
