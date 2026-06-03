@@ -2,21 +2,37 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { MessageCircle, Check, Phone, AtSign, Clock } from "lucide-react";
+import { MessageCircle, Check, Clock, ChevronRight } from "lucide-react";
 import { useConnections } from "@/hooks/useConnections";
 import { markInboxSeen } from "@/hooks/useInboxBadge";
-import { getUser } from "@/lib/firebase/db";
+import { getLastMessagesByPeer, getUser } from "@/lib/firebase/db";
 import { Avatar, Card, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/features/EmptyState";
 import { ThemeToggle } from "@/components/features/ThemeToggle";
-import type { Connection, User } from "@/types";
+import { cn } from "@/lib/utils/cn";
+import type { Connection, Message, User } from "@/types";
+
+function formatRelativeTime(ts: number): string {
+  const diffMs = Date.now() - ts;
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 7) return `${days}d`;
+  return new Date(ts).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+}
 
 export default function ConnectionsPage() {
   const { connections, loading, accept, decline, myUid } = useConnections();
   const [users, setUsers] = useState<Record<string, User>>({});
+  const [lastMessages, setLastMessages] = useState<Record<string, Message>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
-  // Clear the DMs nav badge as soon as the page mounts.
   useEffect(() => {
     markInboxSeen();
   }, []);
@@ -27,7 +43,6 @@ export default function ConnectionsPage() {
       ...new Set(connections.map((c) => (c.from === myUid ? c.to : c.from))),
     ];
     let active = true;
-    // Promise.all([]) resolves to [] → clears the map when there are none.
     void Promise.all(others.map(getUser)).then((list) => {
       if (!active) return;
       const map: Record<string, User> = {};
@@ -40,6 +55,17 @@ export default function ConnectionsPage() {
       active = false;
     };
   }, [connections, myUid]);
+
+  useEffect(() => {
+    if (!myUid) return;
+    let active = true;
+    void getLastMessagesByPeer(myUid).then((map) => {
+      if (active) setLastMessages(map);
+    });
+    return () => {
+      active = false;
+    };
+  }, [myUid, connections]);
 
   const otherUid = (c: Connection) => (c.from === myUid ? c.to : c.from);
   const run = (id: string, fn: () => Promise<void>) => async () => {
@@ -57,7 +83,13 @@ export default function ConnectionsPage() {
   const sent = connections.filter(
     (c) => c.status === "pending" && c.from === myUid,
   );
-  const connected = connections.filter((c) => c.status === "accepted");
+  const connected = connections
+    .filter((c) => c.status === "accepted")
+    .sort((a, b) => {
+      const ma = lastMessages[otherUid(a)]?.createdAt ?? 0;
+      const mb = lastMessages[otherUid(b)]?.createdAt ?? 0;
+      return mb - ma;
+    });
 
   return (
     <div>
@@ -116,33 +148,26 @@ export default function ConnectionsPage() {
           )}
 
           {connected.length > 0 && (
-            <Group title="Connected">
+            <Group title="Conversations">
               {connected.map((c) => {
                 const u = users[otherUid(c)];
-                const handle = u?.instagram?.replace(/^@/, "");
+                const last = lastMessages[otherUid(c)];
+                const mine = last?.from === myUid;
                 return (
-                  <Row key={c.id} user={u}>
-                    {u && (
-                      <div className="flex flex-col items-end gap-1 text-xs">
-                        <a
-                          href={`tel:${u.contactNumber}`}
-                          className="flex items-center gap-1 text-accent-700"
-                        >
-                          <Phone className="size-3.5" /> {u.contactNumber}
-                        </a>
-                        {handle && (
-                          <a
-                            href={`https://instagram.com/${handle}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex items-center gap-1 text-accent-700"
-                          >
-                            <AtSign className="size-3.5" /> {handle}
-                          </a>
-                        )}
-                      </div>
-                    )}
-                  </Row>
+                  <ConversationRow
+                    key={c.id}
+                    user={u}
+                    peerUid={otherUid(c)}
+                    lastMessage={
+                      last
+                        ? {
+                            text: last.text,
+                            mine: !!mine,
+                            at: last.createdAt,
+                          }
+                        : null
+                    }
+                  />
                 );
               })}
             </Group>
@@ -207,5 +232,53 @@ function Row({
       </Link>
       {children}
     </Card>
+  );
+}
+
+function ConversationRow({
+  user,
+  peerUid,
+  lastMessage,
+}: {
+  user?: User;
+  peerUid: string;
+  lastMessage: { text: string; mine: boolean; at: number } | null;
+}) {
+  return (
+    <Link href={`/connections/${peerUid}`} className="block">
+      <Card
+        interactive
+        className="flex items-center gap-3"
+      >
+        {user ? (
+          <Avatar name={user.fullName} src={user.photoURL} size="md" />
+        ) : (
+          <div className="size-12 shrink-0 rounded-full bg-sand" />
+        )}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2">
+            <p className="truncate font-medium">
+              {user?.fullName ?? "Student"}
+            </p>
+            {lastMessage && (
+              <span className="shrink-0 text-[10px] text-faint">
+                {formatRelativeTime(lastMessage.at)}
+              </span>
+            )}
+          </div>
+          <p
+            className={cn(
+              "mt-0.5 truncate text-xs",
+              lastMessage ? "text-muted" : "text-faint italic",
+            )}
+          >
+            {lastMessage
+              ? `${lastMessage.mine ? "You: " : ""}${lastMessage.text}`
+              : "Say hi — no messages yet."}
+          </p>
+        </div>
+        <ChevronRight className="size-4 shrink-0 text-faint" />
+      </Card>
+    </Link>
   );
 }

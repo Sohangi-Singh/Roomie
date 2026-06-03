@@ -4,6 +4,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   runTransaction,
   setDoc,
@@ -17,6 +18,7 @@ import type {
   Connection,
   Gender,
   Group,
+  Message,
   Questionnaire,
   User,
 } from "@/types";
@@ -37,6 +39,7 @@ const groupsCol = collection(db, "groups").withConverter(converter<Group>());
 const connCol = collection(db, "connections").withConverter(
   converter<Connection>(),
 );
+const msgCol = collection(db, "messages").withConverter(converter<Message>());
 
 /* -------------------------------- users --------------------------------- */
 
@@ -159,4 +162,49 @@ export async function updateConnectionStatus(
   status: Connection["status"],
 ): Promise<void> {
   await updateDoc(doc(connCol, id), { status });
+}
+
+/* ------------------------------ messages -------------------------------- */
+
+export async function sendMessage(m: Omit<Message, "id">): Promise<string> {
+  const ref = await addDoc(msgCol, m as Message);
+  await updateDoc(ref, { id: ref.id });
+  return ref.id;
+}
+
+/** Subscribe to live updates of the conversation between `myUid` and
+ *  `otherUid`. Returns an unsubscribe function. */
+export function subscribeToConversation(
+  myUid: string,
+  otherUid: string,
+  cb: (messages: Message[]) => void,
+): () => void {
+  // Pull everything I'm a participant in, filter to this pair client-side.
+  const q = query(msgCol, where("participants", "array-contains", myUid));
+  return onSnapshot(q, (snap) => {
+    const convo = snap.docs
+      .map((d) => d.data())
+      .filter((m) => m.participants.includes(otherUid))
+      .sort((a, b) => a.createdAt - b.createdAt);
+    cb(convo);
+  });
+}
+
+/** Latest message for every accepted conversation involving `uid` —
+ *  keyed by the OTHER participant's uid. Used for the conversations list. */
+export async function getLastMessagesByPeer(
+  uid: string,
+): Promise<Record<string, Message>> {
+  const snap = await getDocs(
+    query(msgCol, where("participants", "array-contains", uid)),
+  );
+  const byPeer: Record<string, Message> = {};
+  snap.docs.forEach((d) => {
+    const m = d.data();
+    const peer = m.from === uid ? m.to : m.from;
+    if (!byPeer[peer] || m.createdAt > byPeer[peer].createdAt) {
+      byPeer[peer] = m;
+    }
+  });
+  return byPeer;
 }
