@@ -83,14 +83,18 @@ export function roomTypesOverlap(a: RoomType[], b: RoomType[]): boolean {
   return a.some((r) => b.includes(r));
 }
 
-export function formatHostelPrefs(prefs: HostelId[]): string {
-  if (prefs.length === 0) return "Not set";
+export function formatHostelPrefs(
+  prefs: HostelId[] | undefined | null,
+): string {
+  if (!prefs || prefs.length === 0) return "Not set";
   if (prefs.length === 2) return "Either hostel";
   return HOSTELS[prefs[0]].name;
 }
 
-export function formatRoomTypePrefs(prefs: RoomType[]): string {
-  if (prefs.length === 0) return "Not set";
+export function formatRoomTypePrefs(
+  prefs: RoomType[] | undefined | null,
+): string {
+  if (!prefs || prefs.length === 0) return "Not set";
   if (prefs.length === 3) return "Any sharing";
   if (prefs.length === 1) return ROOM_TYPE_LABELS[prefs[0]];
   return prefs.map((rt) => ROOM_TYPE_SHORT[rt]).join(" / ");

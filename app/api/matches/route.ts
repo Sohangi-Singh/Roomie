@@ -9,12 +9,44 @@ import type { Gender, HostelId, Questionnaire, RoomType } from "@/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** A questionnaire doc, plus the server-only fields embedded for matching. */
+/** A questionnaire doc, plus the server-only fields embedded for matching.
+ *  _profile is `unknown` because old test-data snapshots may have the legacy
+ *  singular `hostel`/`roomType` instead of the new array prefs. */
 type StoredQ = Questionnaire & {
   _gender?: Gender;
   _onboarded?: boolean;
-  _profile?: PublicProfile;
+  _profile?: PublicProfile & {
+    hostel?: HostelId;
+    roomType?: RoomType;
+  };
 };
+
+/** Migrate legacy snapshots (singular hostel/roomType) to the new prefs
+ *  arrays on the fly so the client never sees undefined. */
+function normaliseProfile(
+  p: NonNullable<StoredQ["_profile"]>,
+): PublicProfile {
+  const hostelPrefs: HostelId[] = Array.isArray(p.hostelPrefs)
+    ? p.hostelPrefs
+    : p.hostel
+      ? [p.hostel]
+      : [];
+  const roomTypePrefs: RoomType[] = Array.isArray(p.roomTypePrefs)
+    ? p.roomTypePrefs
+    : p.roomType
+      ? [p.roomType]
+      : [];
+  return {
+    uid: p.uid,
+    fullName: p.fullName,
+    year: p.year,
+    gender: p.gender,
+    hostelPrefs,
+    roomTypePrefs,
+    ...(p.photoURL ? { photoURL: p.photoURL } : {}),
+    ...(p.bio ? { bio: p.bio } : {}),
+  };
+}
 
 function facetsOf(q: Questionnaire): MatchFacets {
   const room = q.cleanliness.room;
@@ -37,8 +69,9 @@ export async function GET(req: NextRequest) {
 
   const meData = meSnap.data() as StoredQ;
   const myGender = meData._gender;
-  const myHostels: HostelId[] = meData._profile?.hostelPrefs ?? [];
-  const myRooms: RoomType[] = meData._profile?.roomTypePrefs ?? [];
+  const meProfile = meData._profile ? normaliseProfile(meData._profile) : null;
+  const myHostels: HostelId[] = meProfile?.hostelPrefs ?? [];
+  const myRooms: RoomType[] = meProfile?.roomTypePrefs ?? [];
   if (!myGender) return NextResponse.json({ matches: [] });
 
   // One read per same-gender candidate — no separate user-doc reads.
@@ -62,7 +95,11 @@ export async function GET(req: NextRequest) {
   for (const result of ranked) {
     const data = dataByUid.get(result.uid);
     if (data?._profile) {
-      matches.push({ user: data._profile, result, facets: facetsOf(data) });
+      matches.push({
+        user: normaliseProfile(data._profile),
+        result,
+        facets: facetsOf(data),
+      });
     }
   }
 
