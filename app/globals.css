@@ -78,34 +78,42 @@
 /* Dark palette — applied when html has the `.dark` class. CSS variables
    only, so every existing utility (bg-canvas, text-ink, etc.) auto-swaps. */
 :root.dark {
+  /* Anchored on the user-provided palette:
+     bg #0A100A · card #1F281A · primary #818F6F · secondary #627052
+     hover #3B4B35 · text #F4EFE6. Surrounding shades brightened to give
+     selected states + match-explanation cards clearer separation. */
   --color-canvas: #0a100a;
-  --color-sand: #151b14;
+  --color-sand: #181f17;
   --color-surface: #1f281a;
-  --color-surface-2: #28321f;
-  --color-line: rgba(244, 239, 230, 0.1);
-  --color-line-strong: rgba(244, 239, 230, 0.18);
+  --color-surface-2: #2d3925;
+  --color-line: rgba(244, 239, 230, 0.14);
+  --color-line-strong: rgba(244, 239, 230, 0.24);
 
-  --color-accent-50: #1b231a;
-  --color-accent-100: #28321f;
-  --color-accent-200: #3b4b35;
-  --color-accent-300: #4f6147;
-  --color-accent-400: #627052;
+  --color-accent-50: #1f2a1e;
+  /* Brightened — was #28321f, barely distinguishable from surface in dark. */
+  --color-accent-100: #354826;
+  /* Brightened — gives hover/secondary states better visibility. */
+  --color-accent-200: #485e3a;
+  --color-accent-300: #5a724a;
+  --color-accent-400: #6e8459;
   --color-accent-500: #818f6f;
-  --color-accent-600: #95a282;
-  --color-accent-700: #a9b596;
-  --color-accent-800: #bdc8ab;
-  --color-accent-900: #d1dac0;
+  --color-accent-600: #98a583;
+  --color-accent-700: #aebaa0;
+  --color-accent-800: #c2cdb3;
+  --color-accent-900: #d6decb;
 
   --color-ink: #f4efe6;
-  --color-muted: #a9aea0;
-  --color-faint: #7a7e72;
+  /* Brightened slightly — was #a9aea0, lifts body-copy contrast. */
+  --color-muted: #b6bcae;
+  --color-faint: #8a8e82;
 
-  --color-success: #9cb897;
-  --color-success-soft: #233029;
-  --color-warning: #d6b27a;
-  --color-warning-soft: #322817;
-  --color-danger: #d89489;
-  --color-danger-soft: #311e1a;
+  --color-success: #a8c39e;
+  /* Brightened — was #233029, lifts the "Potential clashes" tinted card. */
+  --color-success-soft: #2c3d31;
+  --color-warning: #dcbe88;
+  --color-warning-soft: #3d3220;
+  --color-danger: #e1a094;
+  --color-danger-soft: #3d2620;
 
   --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.4);
   --shadow-card: 0 10px 30px -12px rgba(0, 0, 0, 0.5);

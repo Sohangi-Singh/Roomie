@@ -19,6 +19,7 @@ import { RequireAuth } from "@/components/features/RequireAuth";
 import { QuestionStep } from "@/components/features/QuestionStep";
 import { CategoryIcon } from "@/components/features/CategoryIcon";
 import { Brand } from "@/components/features/Brand";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 import {
   Button,
   Input,
@@ -276,7 +277,10 @@ function OnboardingFlow() {
           <span className="text-xs font-medium text-muted">
             {step + 1} / {TOTAL}
           </span>
-          <Brand size="sm" />
+          <div className="flex items-center gap-1.5">
+            <ThemeToggle />
+            <Brand size="sm" />
+          </div>
         </div>
         <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-accent-100">
           <motion.div

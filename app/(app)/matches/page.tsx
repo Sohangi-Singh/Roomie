@@ -17,6 +17,7 @@ import {
 import { MatchList } from "@/components/features/MatchList";
 import { EmptyState } from "@/components/features/EmptyState";
 import { FilterSheet } from "@/components/features/FilterSheet";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 import { BottomSheet, SkeletonCard, Button } from "@/components/ui";
 function passes(m: RankedMatch, f: ExploreFilters): boolean {
   const { user, facets, result } = m;
@@ -82,6 +83,7 @@ export default function MatchesPage() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <ThemeToggle className="mt-1" />
           <button
             type="button"
             onClick={() => setSheetOpen(true)}

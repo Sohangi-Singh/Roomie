@@ -8,7 +8,9 @@ export default function AppLayout({
 }) {
   return (
     <RequireAuth>
-      <div className="mx-auto min-h-dvh max-w-md px-4 pb-28 pt-6">
+      {/* Mobile-first column. Widens on lg so desktop users get breathing
+          room without redesigning the mobile experience. */}
+      <div className="mx-auto min-h-dvh max-w-md px-4 pb-28 pt-6 lg:max-w-3xl lg:px-8">
         {children}
       </div>
       <BottomNav />

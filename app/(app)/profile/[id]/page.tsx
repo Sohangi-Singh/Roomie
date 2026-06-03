@@ -19,6 +19,7 @@ import { RadarChart } from "@/components/features/RadarChart";
 import { InsightList } from "@/components/features/InsightList";
 import { CategoryBreakdown } from "@/components/features/CategoryBreakdown";
 import { ConnectButton } from "@/components/features/ConnectButton";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
 import { PERSONA_OPTIONS } from "@/config/questionnaire";
 import { formatTime } from "@/lib/utils/format";
@@ -104,15 +105,18 @@ export default function ProfilePage() {
         >
           <ArrowLeft className="size-5" />
         </button>
-        {isSelf && (
-          <Link
-            href="/settings"
-            className="rounded-full p-2 text-muted transition-colors hover:bg-sand"
-            aria-label="Settings"
-          >
-            <Settings className="size-5" />
-          </Link>
-        )}
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          {isSelf && (
+            <Link
+              href="/settings"
+              className="rounded-full p-2 text-muted transition-colors hover:bg-sand"
+              aria-label="Settings"
+            >
+              <Settings className="size-5" />
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col items-center text-center">

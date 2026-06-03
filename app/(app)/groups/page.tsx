@@ -6,6 +6,7 @@ import { useGroups } from "@/hooks/useGroups";
 import { useCurrentUser } from "@/hooks/useAuth";
 import { GroupCard } from "@/components/features/GroupCard";
 import { EmptyState } from "@/components/features/EmptyState";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 import {
   BottomSheet,
   Button,
@@ -63,9 +64,12 @@ export default function GroupsPage() {
           <h1 className="font-display text-3xl font-semibold">Groups</h1>
           <p className="mt-1 text-sm text-muted">Team up to fill a room.</p>
         </div>
-        <Button size="sm" onClick={() => setSheet(true)}>
-          <Plus className="size-4" /> New
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button size="sm" onClick={() => setSheet(true)}>
+            <Plus className="size-4" /> New
+          </Button>
+        </div>
       </header>
 
       {loading && (

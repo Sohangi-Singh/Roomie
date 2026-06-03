@@ -25,11 +25,13 @@ export function MatchList({ matches }: { matches: RankedMatch[] }) {
   }, [matches.length]);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 lg:grid lg:grid-cols-2 lg:gap-3 lg:space-y-0">
       {matches.slice(0, visible).map((m, i) => (
         <MatchCard key={m.user.uid} match={m} index={Math.min(i, 8)} />
       ))}
-      {visible < matches.length && <div ref={sentinel} className="h-8" />}
+      {visible < matches.length && (
+        <div ref={sentinel} className="h-8 lg:col-span-2" />
+      )}
     </div>
   );
 }

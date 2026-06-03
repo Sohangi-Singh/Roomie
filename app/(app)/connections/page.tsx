@@ -8,6 +8,7 @@ import { markInboxSeen } from "@/hooks/useInboxBadge";
 import { getUser } from "@/lib/firebase/db";
 import { Avatar, Card, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/features/EmptyState";
+import { ThemeToggle } from "@/components/features/ThemeToggle";
 import type { Connection, User } from "@/types";
 
 export default function ConnectionsPage() {
@@ -60,11 +61,14 @@ export default function ConnectionsPage() {
 
   return (
     <div>
-      <header className="mb-5">
-        <h1 className="font-display text-3xl font-semibold">DMs</h1>
-        <p className="mt-1 text-sm leading-relaxed text-muted">
-          DM your requests and discuss the grey areas with them if need be.
-        </p>
+      <header className="mb-5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl font-semibold">DMs</h1>
+          <p className="mt-1 text-sm leading-relaxed text-muted">
+            DM your requests and discuss the grey areas with them if need be.
+          </p>
+        </div>
+        <ThemeToggle className="mt-1 shrink-0" />
       </header>
 
       {loading && (
