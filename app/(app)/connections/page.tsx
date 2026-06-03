@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { MessageCircle, Check, Phone, AtSign, Clock } from "lucide-react";
 import { useConnections } from "@/hooks/useConnections";
+import { markInboxSeen } from "@/hooks/useInboxBadge";
 import { getUser } from "@/lib/firebase/db";
 import { Avatar, Card, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/features/EmptyState";
@@ -13,6 +14,11 @@ export default function ConnectionsPage() {
   const { connections, loading, accept, decline, myUid } = useConnections();
   const [users, setUsers] = useState<Record<string, User>>({});
   const [busy, setBusy] = useState<string | null>(null);
+
+  // Clear the DMs nav badge as soon as the page mounts.
+  useEffect(() => {
+    markInboxSeen();
+  }, []);
 
   useEffect(() => {
     if (!myUid) return;
