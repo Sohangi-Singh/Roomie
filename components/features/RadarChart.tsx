@@ -9,7 +9,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { RadarPoint } from "@/lib/matching";
-import { radar as tokens } from "@/config/tokens";
+import { getRadarTokens } from "@/config/tokens";
+import { useThemeStore } from "@/stores/themeStore";
 
 export function RadarChart({
   data,
@@ -20,6 +21,8 @@ export function RadarChart({
   height?: number;
   showLabels?: boolean;
 }) {
+  const dark = useThemeStore((s) => s.theme === "dark");
+  const tokens = getRadarTokens(dark);
   const chartData = data.map((d) => ({ axis: d.label, score: d.score }));
   return (
     <div style={{ height }}>

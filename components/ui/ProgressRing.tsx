@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { scoreColor } from "@/config/tokens";
+import { useThemeStore } from "@/stores/themeStore";
 import { cn } from "@/lib/utils/cn";
 
 export interface ProgressRingProps {
@@ -23,11 +24,12 @@ export function ProgressRing({
   color,
   className,
 }: ProgressRingProps) {
+  const dark = useThemeStore((s) => s.theme === "dark");
   const clamped = Math.max(0, Math.min(100, value));
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (clamped / 100) * circumference;
-  const col = color ?? scoreColor(clamped);
+  const col = color ?? scoreColor(clamped, dark);
 
   return (
     <div

@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import type { Category } from "@/types";
 import { CATEGORY_META, CATEGORIES } from "@/config/questionnaire";
 import { scoreColor } from "@/config/tokens";
+import { useThemeStore } from "@/stores/themeStore";
 import { CategoryIcon } from "./CategoryIcon";
 
 export function CategoryBreakdown({
@@ -11,6 +12,7 @@ export function CategoryBreakdown({
 }: {
   categories: Record<Category, number>;
 }) {
+  const dark = useThemeStore((s) => s.theme === "dark");
   return (
     <div className="space-y-2.5">
       {CATEGORIES.map((c) => {
@@ -27,7 +29,7 @@ export function CategoryBreakdown({
             <div className="h-2 flex-1 overflow-hidden rounded-full bg-accent-100">
               <motion.div
                 className="h-full rounded-full"
-                style={{ backgroundColor: scoreColor(v) }}
+                style={{ backgroundColor: scoreColor(v, dark) }}
                 initial={{ width: 0 }}
                 whileInView={{ width: `${v}%` }}
                 viewport={{ once: true }}

@@ -243,7 +243,9 @@ function ImportanceStep({
             className={cn(
               "flex items-center gap-3 rounded-2xl p-3.5 text-left transition-colors",
               lvl === 0 && "bg-surface shadow-soft ring-1 ring-line",
-              lvl === 1 && "bg-accent-100",
+              // Brighter mid-tone so single-tap is clearly distinguishable
+              // from both the unselected surface and the full-tap accent-500.
+              lvl === 1 && "bg-accent-300 text-accent-900",
               lvl === 2 && "bg-accent-500 text-canvas",
             )}
           >
