@@ -23,7 +23,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const inboxCount = useInboxBadge();
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 lg:max-w-lg">
+    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 mx-auto max-w-md px-4 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2 lg:hidden">
       <div className="glass pointer-events-auto flex items-center justify-around rounded-3xl px-2 py-2 shadow-lift ring-1 ring-line">
         {ITEMS.map((it) => {
           const active = pathname.startsWith(it.match);

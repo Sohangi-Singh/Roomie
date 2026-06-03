@@ -6,6 +6,7 @@ import { ArrowLeft, AtSign, Phone, Send } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useChat } from "@/hooks/useChat";
 import { useConnectionWith } from "@/hooks/useConnections";
+import { markChatSeen } from "@/hooks/useInboxBadge";
 import { getUser } from "@/lib/firebase/db";
 import { Avatar, Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
@@ -49,7 +50,9 @@ export default function ChatPage() {
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [messages.length]);
+    // Anything visible has been "seen" — keeps the DMs badge in sync.
+    if (otherUid) markChatSeen(otherUid);
+  }, [messages.length, otherUid]);
 
   const handleSend = async () => {
     const body = text.trim();

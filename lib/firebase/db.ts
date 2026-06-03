@@ -72,15 +72,14 @@ export async function saveQuestionnaire(
   q: Questionnaire,
   profile: PublicProfile,
 ): Promise<void> {
-  // The embedded snapshot (server-readable only) lets the matching API build
-  // candidate lists from a single read per person. It's non-sensitive public
-  // info; raw answers stay owner-only via security rules.
   await setDoc(doc(db, "questionnaires", q.uid), {
     ...q,
     _gender: profile.gender,
     _onboarded: true,
     _profile: profile,
   });
+  // Tick the global version so every connected client refreshes its match list.
+  await bumpMatchesVersion().catch(() => undefined);
 }
 
 /** Keep the questionnaire's embedded public-profile snapshot in sync. */
@@ -93,6 +92,7 @@ export async function updateQuestionnaireProfile(
     _gender: profile.gender,
     _onboarded: true,
   });
+  await bumpMatchesVersion().catch(() => undefined);
 }
 
 /* -------------------------------- groups -------------------------------- */
@@ -212,4 +212,41 @@ export async function getLastMessagesByPeer(
     }
   });
   return byPeer;
+}
+
+/** All messages addressed to `uid`. Used by the DMs badge to count unread. */
+export async function getMessagesTo(uid: string): Promise<Message[]> {
+  const snap = await getDocs(query(msgCol, where("to", "==", uid)));
+  return snap.docs.map((d) => d.data());
+}
+
+/* ---------------------------- matches version --------------------------- */
+
+/** Global tick that increments whenever any user saves/updates their
+ *  questionnaire. Connected clients subscribe and force-refresh their
+ *  match list so rankings reflect new data without a manual refresh. */
+export async function bumpMatchesVersion(): Promise<void> {
+  const ref = doc(db, "meta", "matches");
+  // Use a transaction so multiple concurrent updates don't lose increments.
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    const current = (snap.exists() ? (snap.data() as { version?: number }).version : 0) ?? 0;
+    tx.set(ref, { version: current + 1, updatedAt: Date.now() });
+  });
+}
+
+/** Subscribe to the matches version counter. `cb` fires with the latest
+ *  version (and again on every increment). Returns an unsubscribe fn. */
+export function subscribeToMatchesVersion(
+  cb: (version: number) => void,
+): () => void {
+  const ref = doc(db, "meta", "matches");
+  return onSnapshot(ref, (snap) => {
+    if (!snap.exists()) {
+      cb(0);
+      return;
+    }
+    const data = snap.data() as { version?: number };
+    cb(data.version ?? 0);
+  });
 }

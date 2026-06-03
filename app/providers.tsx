@@ -3,9 +3,14 @@
 import { useEffect } from "react";
 import { MotionConfig } from "framer-motion";
 import { onAuthChange } from "@/lib/firebase/auth";
-import { getQuestionnaire, getUser } from "@/lib/firebase/db";
+import {
+  getQuestionnaire,
+  getUser,
+  subscribeToMatchesVersion,
+} from "@/lib/firebase/db";
 import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { useAuthStore } from "@/stores/authStore";
+import { useMatchesStore } from "@/stores/matchesStore";
 import { useThemeStore } from "@/stores/themeStore";
 
 export function Providers({ children }: { children: React.ReactNode }) {
@@ -44,6 +49,26 @@ export function Providers({ children }: { children: React.ReactNode }) {
     });
     return () => unsubscribe();
   }, [setAuth]);
+
+  // Real-time match refresh: any user's questionnaire save bumps a global
+  // version doc. When it changes, force a re-fetch of the cached match list
+  // so rankings reflect the new data without anyone hitting Refresh.
+  useEffect(() => {
+    if (!isFirebaseConfigured) return;
+    let lastVersion: number | null = null;
+    const unsubscribe = subscribeToMatchesVersion((version) => {
+      // First emission = current value; only act when it actually changes.
+      if (lastVersion === null) {
+        lastVersion = version;
+        return;
+      }
+      if (version === lastVersion) return;
+      lastVersion = version;
+      const { uid, load } = useMatchesStore.getState();
+      if (uid) void load(uid, true);
+    });
+    return () => unsubscribe();
+  }, []);
 
   return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
 }

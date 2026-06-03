@@ -54,6 +54,14 @@ service cloud.firestore {
         && request.auth.uid == resource.data.from;
     }
 
+    match /meta/{id} {
+      // Global meta docs (e.g. the matches version tick). Any signed-in user
+      // can read so their match list stays in sync, and can bump on a
+      // questionnaire write — the value is just an integer counter.
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
     match /messages/{id} {
       // Only participants of a message can read it.
       allow read: if isSignedIn()

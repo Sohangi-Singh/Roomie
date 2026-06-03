@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { getConnectionsFor } from "@/lib/firebase/db";
+import { getConnectionsFor, getMessagesTo } from "@/lib/firebase/db";
 
 const KEY = "roomie-inbox-seen";
+const CHAT_KEY = (peerUid: string) => `roomie-chat-seen-${peerUid}`;
 const SEEN_EVENT = "roomie-inbox-seen";
 
 function loadLastSeen(): number {
@@ -16,7 +17,16 @@ function loadLastSeen(): number {
   }
 }
 
-/** Call when the user views their DMs/inbox — clears the badge. */
+function loadChatLastSeen(peerUid: string): number {
+  try {
+    const v = localStorage.getItem(CHAT_KEY(peerUid));
+    return v ? Number(v) || 0 : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** Call when the user views the DMs list — clears the request badge. */
 export function markInboxSeen(): void {
   try {
     localStorage.setItem(KEY, String(Date.now()));
@@ -28,9 +38,24 @@ export function markInboxSeen(): void {
   }
 }
 
+/** Call when the user is viewing a specific chat — clears its unread tally. */
+export function markChatSeen(peerUid: string): void {
+  try {
+    localStorage.setItem(CHAT_KEY(peerUid), String(Date.now()));
+  } catch {
+    /* ignore */
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(SEEN_EVENT));
+  }
+}
+
 /**
- * Returns the number of unseen pending requests addressed to the current user.
- * "Unseen" = created after the user last visited the inbox.
+ * Total inbox badge — counts both:
+ *   • pending requests addressed to the user, created after their last
+ *     visit to the DMs list, plus
+ *   • messages addressed to the user, newer than their last visit to the
+ *     specific chat with that sender.
  */
 export function useInboxBadge(): number {
   const uid = useAuthStore((s) => s.fbUser?.uid ?? null);
@@ -43,13 +68,19 @@ export function useInboxBadge(): number {
         return;
       }
       try {
-        const conns = await getConnectionsFor(uid);
-        const lastSeen = loadLastSeen();
-        const unseen = conns.filter(
+        const [conns, msgs] = await Promise.all([
+          getConnectionsFor(uid),
+          getMessagesTo(uid),
+        ]);
+        const lastInbox = loadLastSeen();
+        const unseenRequests = conns.filter(
           (c) =>
-            c.status === "pending" && c.to === uid && c.createdAt > lastSeen,
+            c.status === "pending" && c.to === uid && c.createdAt > lastInbox,
         ).length;
-        if (!signal.cancelled) setCount(unseen);
+        const unseenMessages = msgs.filter(
+          (m) => m.createdAt > loadChatLastSeen(m.from),
+        ).length;
+        if (!signal.cancelled) setCount(unseenRequests + unseenMessages);
       } catch {
         if (!signal.cancelled) setCount(0);
       }
@@ -59,12 +90,10 @@ export function useInboxBadge(): number {
 
   useEffect(() => {
     const signal = { cancelled: false };
-    // Deferred via microtask so the initial setState isn't called
-    // synchronously from inside the effect body.
     void Promise.resolve().then(() => recompute(signal));
 
     const onSeen = () => {
-      if (!signal.cancelled) setCount(0);
+      void recompute(signal);
     };
     if (typeof window !== "undefined") {
       window.addEventListener(SEEN_EVENT, onSeen);
