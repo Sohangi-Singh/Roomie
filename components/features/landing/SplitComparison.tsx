@@ -76,10 +76,10 @@ export function SplitComparison() {
         viewport={{ once: true, margin: "-60px" }}
         transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       >
-        <Card className="relative pl-4">
+        <Card className="relative pl-4 lg:overflow-hidden">
           <span
             aria-hidden
-            className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-danger"
+            className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-danger lg:inset-y-0 lg:w-1.5 lg:rounded-none"
           />
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
@@ -120,10 +120,10 @@ export function SplitComparison() {
           ease: [0.22, 1, 0.36, 1],
         }}
       >
-        <Card className="relative pl-4">
+        <Card className="relative pl-4 lg:overflow-hidden">
           <span
             aria-hidden
-            className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-success"
+            className="absolute left-0 top-5 bottom-5 w-1 rounded-r-full bg-success lg:inset-y-0 lg:w-1.5 lg:rounded-none"
           />
           <div className="mb-4 flex items-start justify-between gap-3">
             <div>
