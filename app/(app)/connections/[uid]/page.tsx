@@ -23,7 +23,12 @@ export default function ChatPage() {
   const me = useAuthStore((s) => s.fbUser);
 
   const { conn, loading: connLoading } = useConnectionWith(otherUid);
-  const { messages, loading: msgsLoading, send } = useChat(otherUid);
+  const {
+    messages,
+    loading: msgsLoading,
+    error: chatError,
+    send,
+  } = useChat(otherUid);
   const [other, setOther] = useState<User | null>(null);
   const [text, setText] = useState("");
   const [sending, setSending] = useState(false);
@@ -137,13 +142,23 @@ export default function ChatPage() {
 
       {/* messages */}
       <div className="flex-1 space-y-2 overflow-y-auto py-4">
-        {msgsLoading && (
+        {msgsLoading && !chatError && (
           <p className="py-6 text-center text-xs text-faint">Loading…</p>
         )}
-        {!msgsLoading && messages.length === 0 && (
+        {chatError && (
+          <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-danger-soft px-4 py-3 text-center">
+            <p className="text-sm font-medium text-danger">{chatError}</p>
+            <p className="mt-1 text-xs text-muted">
+              Once the Firestore rules are live, refresh this page and the chat
+              will work.
+            </p>
+          </div>
+        )}
+        {!msgsLoading && !chatError && messages.length === 0 && (
           <div className="py-12 text-center">
             <p className="text-sm text-muted">
-              No messages yet. Say hi to {other?.fullName?.split(" ")[0] ?? "them"} 👋
+              No messages yet. Say hi to{" "}
+              {other?.fullName?.split(" ")[0] ?? "them"} 👋
             </p>
           </div>
         )}

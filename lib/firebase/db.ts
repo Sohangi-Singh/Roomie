@@ -178,16 +178,21 @@ export function subscribeToConversation(
   myUid: string,
   otherUid: string,
   cb: (messages: Message[]) => void,
+  onError?: (err: Error) => void,
 ): () => void {
   // Pull everything I'm a participant in, filter to this pair client-side.
   const q = query(msgCol, where("participants", "array-contains", myUid));
-  return onSnapshot(q, (snap) => {
-    const convo = snap.docs
-      .map((d) => d.data())
-      .filter((m) => m.participants.includes(otherUid))
-      .sort((a, b) => a.createdAt - b.createdAt);
-    cb(convo);
-  });
+  return onSnapshot(
+    q,
+    (snap) => {
+      const convo = snap.docs
+        .map((d) => d.data())
+        .filter((m) => m.participants.includes(otherUid))
+        .sort((a, b) => a.createdAt - b.createdAt);
+      cb(convo);
+    },
+    onError,
+  );
 }
 
 /** Latest message for every accepted conversation involving `uid` —
