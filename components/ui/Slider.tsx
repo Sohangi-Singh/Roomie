@@ -29,6 +29,11 @@ export function Slider({
 }: SliderProps) {
   const trackRef = useRef<HTMLDivElement>(null);
   const pct = Math.max(0, Math.min(1, (value - min) / (max - min))) * 100;
+  // Keep the 24px (size-6) thumb fully inside the track at the extremes: its
+  // centre travels between 12px and (100% − 12px) rather than 0%–100%, so its
+  // outer half never spills past the track edge — where an ancestor's
+  // overflow-x-hidden (e.g. the onboarding step) would otherwise clip it.
+  const fillPos = `calc(12px + (100% - 24px) * ${pct / 100})`;
 
   const setFromClientX = useCallback(
     (clientX: number) => {
@@ -79,11 +84,11 @@ export function Slider({
         <div className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent-100" />
         <div
           className="absolute left-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-accent-400"
-          style={{ width: `${pct}%` }}
+          style={{ width: fillPos }}
         />
         <motion.div
           className="absolute top-1/2 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-accent-500 bg-canvas shadow-card"
-          style={{ left: `${pct}%` }}
+          style={{ left: fillPos }}
           whileTap={{ scale: 1.2 }}
         />
       </div>

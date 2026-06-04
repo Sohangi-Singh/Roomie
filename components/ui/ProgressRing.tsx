@@ -30,6 +30,11 @@ export function ProgressRing({
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (clamped / 100) * circumference;
   const col = color ?? scoreColor(clamped, dark);
+  // In dark mode, accent-100 (#354826) is a saturated green that reads as
+  // "filled" — so a low-score ring looked mostly green (inverted). Use a quiet
+  // neutral track there so the score color is always the dominant arc. Light
+  // mode's accent-100 is already a soft neutral, so it's kept.
+  const trackColor = dark ? "var(--color-line-strong)" : "var(--color-accent-100)";
 
   return (
     <div
@@ -42,7 +47,7 @@ export function ProgressRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--color-accent-100)"
+          stroke={trackColor}
           strokeWidth={stroke}
         />
         <motion.circle
