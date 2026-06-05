@@ -15,6 +15,7 @@ import { useThemeStore } from "@/stores/themeStore";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const setAuth = useAuthStore((s) => s.setAuth);
+  const fbUser = useAuthStore((s) => s.fbUser);
 
   useEffect(() => {
     // Pick up the theme set by the no-FOUC script in <head>.
@@ -53,8 +54,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   // Real-time match refresh: any user's questionnaire save bumps a global
   // version doc. When it changes, force a re-fetch of the cached match list
   // so rankings reflect the new data without anyone hitting Refresh.
+  //
+  // Only subscribe while signed in — meta/matches is readable by authenticated
+  // users only (Firestore rules), so a logged-out subscription throws
+  // permission-denied in the snapshot listener (e.g. on the landing/login
+  // pages, or before auth resolves on first load).
   useEffect(() => {
-    if (!isFirebaseConfigured) return;
+    if (!isFirebaseConfigured || !fbUser) return;
     let lastVersion: number | null = null;
     const unsubscribe = subscribeToMatchesVersion((version) => {
       // First emission = current value; only act when it actually changes.
@@ -68,7 +74,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       if (uid) void load(uid, true);
     });
     return () => unsubscribe();
-  }, []);
+  }, [fbUser]);
 
   return <MotionConfig reducedMotion="user">{children}</MotionConfig>;
 }
