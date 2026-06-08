@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Settings, Pencil } from "lucide-react";
+import { ArrowLeft, Settings, Pencil, TriangleAlert } from "lucide-react";
 import { useCurrentUser, useQuestionnaire } from "@/hooks/useAuth";
 import { getUser } from "@/lib/firebase/db";
 import { fetchMatch } from "@/lib/api/matches";
@@ -150,6 +150,18 @@ export default function ProfilePage() {
             </p>
           </Card>
 
+          {match.dealbreakerFlags.length > 0 && (
+            <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger">
+              <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+              <p>
+                <span className="font-semibold">
+                  Dealbreaker{match.dealbreakerFlags.length > 1 ? "s" : ""}:
+                </span>{" "}
+                {match.dealbreakerFlags.join(", ")}
+              </p>
+            </div>
+          )}
+
           <Card className="mt-4">
             <h2 className="mb-1 font-display text-lg font-semibold">
               Compatibility shape
@@ -167,6 +179,7 @@ export default function ProfilePage() {
           <Card className="mt-4">
             <InsightList
               reasons={match.reasons}
+              worthDiscussing={match.worthDiscussing}
               annoyances={match.annoyances}
               conflicts={match.conflicts}
             />

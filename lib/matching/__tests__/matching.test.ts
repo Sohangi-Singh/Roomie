@@ -125,20 +125,20 @@ describe("scorePair", () => {
     }
   });
 
-  it("an absolute dealbreaker craters an otherwise great match — but not below the floor", () => {
+  it("a hard dealbreaker subtracts a fixed −15 penalty and flags it (v2: penalty, not a 22% crater)", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
     const before = scorePair(a, b).overall;
 
     a.dealbreakers.substances = "dealbreaker";
-    b.dealbreakers.substances = "okay"; // b exhibits substances
+    b.behavior = { substances: "regularly", nonveg: null }; // b actually uses substances
     const res = scorePair(a, b);
 
     expect(before).toBeGreaterThanOrEqual(88);
     expect(res.dealbreaker).toBe(true);
-    expect(res.overall).toBeLessThan(40);
-    // Floor — should never crater below 22% solely because of dealbreakers.
-    expect(res.overall).toBeGreaterThanOrEqual(22);
+    // Fixed −15 penalty, well above the 40 floor — no longer cratered to 22.
+    expect(res.overall).toBe(before - 15);
+    expect(res.dealbreakerFlags).toContain("Intoxicating substances");
     expect(res.conflicts.some((c) => /substances/i.test(c))).toBe(true);
   });
 

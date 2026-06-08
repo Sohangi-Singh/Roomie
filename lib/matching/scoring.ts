@@ -123,12 +123,14 @@ export function temperatureScore(a: Questionnaire, b: Questionnaire): number {
 
 export function bathroomScore(a: Questionnaire, b: Questionnaire): number {
   const t = { morning: 0, evening: 1, night: 2 } as const;
-  // Bathroom timing is a shared-resource conflict — **different** timing is
-  // better (less contention). So invert the timing similarity.
-  const timingDiff =
-    100 - simLinear(t[a.bathroom.timing], t[b.bathroom.timing], 2);
+  // Different bathroom timing avoids contention (a mild bonus), but identical
+  // timing is NOT a problem — roommates coordinate. So the timing component
+  // ranges high: same = 85, adjacent = 92.5, opposite = 100 (Fix 5). The old
+  // 0→100 range tanked identical timing and capped near-clones at ~60.
+  const timingDistance = Math.abs(t[a.bathroom.timing] - t[b.bathroom.timing]);
+  const timing = 85 + 7.5 * timingDistance;
   return Math.round(
-    0.4 * timingDiff +
+    0.4 * timing +
       0.2 * simLinear(a.bathroom.durationMin, b.bathroom.durationMin, 40) +
       0.4 * simLevel(a.bathroom.hygieneWeight, b.bathroom.hygieneWeight),
   );
@@ -215,6 +217,21 @@ const DEALBREAKER_KEYS: DealbreakerKey[] = [
   "frequentGuests",
 ];
 
+/**
+ * Whether a person's self-reported in-room behavior is yes / no / unknown.
+ * Fix 1: read the explicit `behavior` field instead of the old tolerance
+ * ("okay") proxy. `null` (unset) and "prefer_not" → "unknown".
+ */
+export function behaviorState(
+  q: Questionnaire,
+  key: "substances" | "nonveg",
+): "yes" | "no" | "unknown" {
+  const v = q.behavior?.[key];
+  if (v === "occasionally" || v === "regularly") return "yes";
+  if (v === "never") return "no";
+  return "unknown";
+}
+
 /** Does this person exhibit the habit behind a dealbreaker key? */
 export function exhibits(q: Questionnaire, key: DealbreakerKey): boolean {
   switch (key) {
@@ -228,11 +245,12 @@ export function exhibits(q: Questionnaire, key: DealbreakerKey): boolean {
       );
     case "frequentGuests":
       return freqToIndex(q.social.guests) >= 3;
-    // No behaviour question for these — being "okay" with it is the proxy.
+    // Fix 1: read explicit behavior. UNKNOWN (null / "prefer_not") never counts
+    // as exhibiting, so it can never trigger a dealbreaker conflict.
     case "substances":
-      return q.dealbreakers.substances === "okay";
+      return behaviorState(q, "substances") === "yes";
     case "nonveg":
-      return q.dealbreakers.nonveg === "okay";
+      return behaviorState(q, "nonveg") === "yes";
   }
 }
 

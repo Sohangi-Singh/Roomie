@@ -31,9 +31,10 @@ export function MatchCard({
               {formatHostelPrefs(user.hostelPrefs)} ·{" "}
               {formatRoomTypePrefs(user.roomTypePrefs)}
             </p>
-            {result.dealbreaker && (
+            {result.dealbreakerFlags.length > 0 && (
               <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger">
-                <TriangleAlert className="size-3" /> Dealbreaker
+                <TriangleAlert className="size-3" />{" "}
+                {result.dealbreakerFlags.join(" · ")}
               </span>
             )}
           </div>

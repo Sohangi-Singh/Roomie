@@ -10,6 +10,10 @@ export type Tri = "no" | "maybe" | "yes";
 /** Dealbreaker stance for a given habit. */
 export type Stance = "okay" | "annoying" | "dealbreaker";
 
+/** Self-reported in-room behavior frequency (substances / non-veg).
+ *  `null` (unset) and "prefer_not" are both treated as UNKNOWN by matching. */
+export type BehaviorFreq = "never" | "occasionally" | "regularly" | "prefer_not";
+
 /** Compatibility categories — also the axes of the radar chart. */
 export type Category =
   | "sleep"
@@ -71,6 +75,14 @@ export interface Questionnaire {
   outingPersona: Persona[];
   travel: { maxKm: number; style: "spontaneous" | "planned" };
   sharing: { food: Tri; clothes: Tri; cosmetics: Tri };
+
+  /** Actual in-room behavior, used for dealbreaker detection (substances /
+   *  non-veg). `null` = not answered yet; "prefer_not" = declined. Both are
+   *  treated as UNKNOWN — they never trigger a dealbreaker, only a soft note. */
+  behavior: {
+    substances: BehaviorFreq | null;
+    nonveg: BehaviorFreq | null;
+  };
 
   importance: Record<Category, Importance>;
   dealbreakers: Record<DealbreakerKey, Stance>;

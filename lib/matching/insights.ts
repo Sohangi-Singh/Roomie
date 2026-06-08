@@ -1,5 +1,5 @@
 import type { Category, DealbreakerKey, Questionnaire } from "@/types";
-import type { DealbreakerConflict } from "./scoring";
+import { behaviorState, type DealbreakerConflict } from "./scoring";
 
 const REASONS: Record<Category, string> = {
   sleep: "You're on similar sleep schedules.",
@@ -14,6 +14,22 @@ const REASONS: Record<Category, string> = {
   outing: "You enjoy similar kinds of outings.",
   travel: "You like to travel similar distances and ways.",
   sharing: "You're on the same page about sharing.",
+};
+
+// Fix 2: neutral, constructive copy for the 50–77 "Worth discussing" band.
+const WORTH_DISCUSSING: Record<Category, string> = {
+  sleep: "Sleep timings differ a little — worth agreeing on quiet hours.",
+  cleanliness: "Slightly different tidiness levels — set a shared baseline early.",
+  noise: "Some difference in noise comfort — headphones go a long way.",
+  study: "You focus a bit differently — easy to plan around.",
+  lighting: "Minor lighting differences — sort out a late-night lamp.",
+  temperature: "Fan preferences differ a touch — usually easy to settle.",
+  bathroom: "Bathroom routines are fairly close — a quick schedule helps.",
+  social: "Somewhat different social energy — align on guests and quiet time.",
+  spending: "Budgets differ a little — agree on shared costs up front.",
+  outing: "Partly overlapping outing tastes — still plenty to do together.",
+  travel: "Slightly different travel appetites — easy to compromise.",
+  sharing: "Mostly aligned on sharing — just confirm the specifics.",
 };
 
 const DEALBREAKER_LINES: Record<DealbreakerKey, string> = {
@@ -57,11 +73,21 @@ function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
   }
 }
 
+// Fix 1: shown when a person hasn't shared a behavior the other side cares about.
+function unknownBehaviorNote(key: "substances" | "nonveg"): string {
+  return key === "substances"
+    ? "They haven't shared their stance on smoking/drinking in the room yet."
+    : "They haven't shared whether they eat non-veg in the room yet.";
+}
+
 export interface Insights {
+  /** Positive compatibility — "Why you match" (green). */
   reasons: string[];
-  /** Soft concerns — annoyance-level dealbreakers + medium-low categories. */
+  /** Mild, neutral notes (50–77 band) + unknown-behavior — "Worth discussing". */
+  worthDiscussing: string[];
+  /** Soft concerns — annoyance-level dealbreakers + 30–49 categories. */
   annoyances: string[];
-  /** Hard dealbreaker conflicts + severe category mismatches only. */
+  /** Hard dealbreaker conflicts + severe (<30) category mismatches. */
   conflicts: string[];
 }
 
@@ -70,8 +96,10 @@ export function buildInsights(
   b: Questionnaire,
   categories: Record<Category, number>,
   dbConflicts: DealbreakerConflict[],
+  overall: number,
 ): Insights {
   const reasons: string[] = [];
+  const worthDiscussing: string[] = [];
   const annoyances: string[] = [];
   const conflicts: string[] = [];
 
@@ -79,18 +107,18 @@ export function buildInsights(
   //                       soft (annoying) → "Might be a problem, but is fine".
   const seenConflict = new Set<string>();
   const seenAnnoyance = new Set<string>();
+  let hardCount = 0;
   for (const c of dbConflicts) {
     const line = DEALBREAKER_LINES[c.key];
     if (c.severity === "hard") {
+      hardCount++;
       if (!seenConflict.has(line)) {
         conflicts.push(line);
         seenConflict.add(line);
       }
-    } else {
-      if (!seenAnnoyance.has(line)) {
-        annoyances.push(line);
-        seenAnnoyance.add(line);
-      }
+    } else if (!seenAnnoyance.has(line)) {
+      annoyances.push(line);
+      seenAnnoyance.add(line);
     }
   }
 
@@ -98,19 +126,16 @@ export function buildInsights(
     c,
     score: categories[c],
   }));
-  const high = entries
-    .filter((e) => e.score >= 78)
-    .sort((x, y) => y.score - x.score);
+  const high = entries.filter((e) => e.score >= 78).sort((x, y) => y.score - x.score);
+  // 50–77 = pretty good, minor difference → neutral "worth discussing"
+  const mid = entries.filter((e) => e.score >= 50 && e.score < 78).sort((x, y) => x.score - y.score);
   // 30–49 = bothersome but liveable
-  const moderate = entries
-    .filter((e) => e.score >= 30 && e.score < 50)
-    .sort((x, y) => x.score - y.score);
+  const moderate = entries.filter((e) => e.score >= 30 && e.score < 50).sort((x, y) => x.score - y.score);
   // < 30 = severe enough to surface as a potential clash
-  const severe = entries
-    .filter((e) => e.score < 30)
-    .sort((x, y) => x.score - y.score);
+  const severe = entries.filter((e) => e.score < 30).sort((x, y) => x.score - y.score);
 
   for (const e of high.slice(0, 4)) reasons.push(REASONS[e.c]);
+  for (const e of mid.slice(0, 3)) worthDiscussing.push(WORTH_DISCUSSING[e.c]);
   for (const e of moderate.slice(0, 3)) {
     const line = conflictLine(e.c, a, b);
     if (!annoyances.includes(line) && !conflicts.includes(line)) {
@@ -122,8 +147,30 @@ export function buildInsights(
     if (!conflicts.includes(line)) conflicts.push(line);
   }
 
-  if (reasons.length === 0) {
-    reasons.push("You have a balanced, workable mix of habits.");
+  // Fix 1: surface a neutral note when one side's substance/non-veg behavior is
+  // unknown AND the other person actually cares (flagged it as non-"okay").
+  for (const key of ["substances", "nonveg"] as const) {
+    const note = unknownBehaviorNote(key);
+    const bUnknownACares =
+      behaviorState(b, key) === "unknown" && a.dealbreakers[key] !== "okay";
+    const aUnknownBCares =
+      behaviorState(a, key) === "unknown" && b.dealbreakers[key] !== "okay";
+    if ((bUnknownACares || aUnknownBCares) && !worthDiscussing.includes(note)) {
+      worthDiscussing.push(note);
+    }
   }
-  return { reasons, annoyances, conflicts };
+
+  // Fix 2: never falsely reassure. The reassuring fallback only appears on a
+  // genuinely balanced match; otherwise show an honest, neutral line instead.
+  if (reasons.length === 0) {
+    if (overall < 60 || hardCount > 0 || severe.length > 0) {
+      worthDiscussing.unshift(
+        "This match has notable friction points — review the clashes below before deciding.",
+      );
+    } else {
+      reasons.push("You have a balanced, workable mix of habits.");
+    }
+  }
+
+  return { reasons, worthDiscussing, annoyances, conflicts };
 }

@@ -65,7 +65,25 @@ export async function getQuestionnaire(
   uid: string,
 ): Promise<Questionnaire | null> {
   const snap = await getDoc(doc(qCol, uid));
-  return snap.exists() ? snap.data() : null;
+  if (!snap.exists()) return null;
+  const q = snap.data();
+  // Read-time migration (Fix 1): docs created before the behavior questions
+  // predate `behavior`. Default to UNSET (null) — never infer from old answers.
+  // The user is prompted to fill it via the BehaviorPrompt modal on next open.
+  if (!q.behavior) {
+    q.behavior = { substances: null, nonveg: null };
+  }
+  return q;
+}
+
+/** Save just the in-room behavior answers (Fix 1 — backfill modal). */
+export async function updateQuestionnaireBehavior(
+  uid: string,
+  behavior: Questionnaire["behavior"],
+): Promise<void> {
+  await updateDoc(doc(db, "questionnaires", uid), { behavior });
+  // Behavior affects dealbreaker detection, so refresh everyone's match list.
+  await bumpMatchesVersion().catch(() => undefined);
 }
 
 export async function saveQuestionnaire(

@@ -1,4 +1,5 @@
 import { RequireAuth } from "@/components/features/RequireAuth";
+import { BehaviorPrompt } from "@/components/features/BehaviorPrompt";
 import { BottomNav, TopNav } from "@/components/ui";
 
 export default function AppLayout({
@@ -16,6 +17,7 @@ export default function AppLayout({
       </div>
       <TopNav />
       <BottomNav />
+      <BehaviorPrompt />
     </RequireAuth>
   );
 }

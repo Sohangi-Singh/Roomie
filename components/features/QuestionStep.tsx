@@ -15,6 +15,7 @@ import {
 } from "@/config/questionnaire";
 import { formatINR, formatKm, formatDuration } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
+import { BehaviorQuestions } from "./BehaviorQuestions";
 
 type Patch = Partial<Questionnaire>;
 
@@ -33,6 +34,13 @@ export function QuestionStep({
     return <PersonaStep answers={answers} onChange={onChange} />;
   if (step.kind === "importance")
     return <ImportanceStep answers={answers} onChange={onChange} />;
+  if (step.kind === "behavior")
+    return (
+      <BehaviorQuestions
+        value={answers.behavior}
+        onChange={(behavior) => onChange({ behavior })}
+      />
+    );
   return <DealbreakersStep answers={answers} onChange={onChange} />;
 }
 

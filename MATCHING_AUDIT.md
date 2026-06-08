@@ -239,3 +239,69 @@ Step 1 — never in scoring code.
 The math is sound and predictable. The risks are **product/semantic**, concentrated in
 (1) how substances/non-veg are inferred and (2) how matches are *explained*. I have **not
 changed any algorithm code** — these are yours to decide.
+
+---
+
+# Fixes Applied — v2 (branch `algorithm-fixes-v2`)
+
+> Implemented the six fixes on a dedicated branch (not merged). `ALGORITHM_VERSION`
+> bumped **1 → 2** in `lib/matching/version.ts`. Full suite: **49 passed** (18 existing
+> lib tests adjusted + 31 v2 spec tests). `typecheck` / `lint` / `build` all green.
+> Run: `npm test` or `npx vitest run __tests__/matching.spec.ts --reporter=verbose`.
+
+| Fix | What changed | Key files |
+|---|---|---|
+| **1 — behavior, not tolerance** | New private `behavior.{substances,nonveg}` field (`Never/Occasionally/Regularly/Prefer not to say`, default `null`). `exhibits()` now reads it; `null`/`prefer_not` = **unknown** → no conflict, but a neutral "haven't shared" note. Read-migration defaults old docs to `null`; a `BehaviorPrompt` modal backfills onboarded users; onboarding gained the two questions. | `types/questionnaire.ts`, `config/questionnaire.ts`, `lib/matching/scoring.ts`, `lib/firebase/db.ts`, `components/features/BehaviorQuestions.tsx` + `BehaviorPrompt.tsx`, `QuestionStep.tsx`, `(app)/layout.tsx` |
+| **2 — honest copy** | Reassuring fallback is suppressed when `overall < 60`, a hard dealbreaker exists, or any category `< 30` — replaced by an honest neutral line. New neutral **"Worth discussing"** band surfaces 50–77 categories. | `lib/matching/insights.ts`, `components/features/InsightList.tsx` |
+| **3 — dealbreaker penalty + flag** | Honest score first, then **−15 per hard / −5 per soft**, floor **40** (no more ×0.25 crater to 22). `dealbreakerFlags: string[]` added to `MatchResult` → ⚠️ badge on cards (now lists *which* dealbreakers) + a prominent banner in the detail view. | `lib/matching/index.ts`, `MatchCard.tsx`, `profile/[id]/page.tsx` |
+| **4 — lifestyle floor** | Non-dealbreaker pairs floor at **27** (was ~5), so they sit *below* dealbreaker pairs (40). | `lib/matching/index.ts` |
+| **5 — self = 100 / near-clone** | `scorePair(user,user)` short-circuits to **exactly 100**, no insights. Bathroom timing reworked (identical timing 85 → opposite 100 instead of 0→100) so a **near-clone now scores 99** (was 97) and bathroom no longer caps at 60. | `lib/matching/index.ts`, `lib/matching/scoring.ts` |
+| **6 — input validation** | `scorePair` validates both questionnaires with the Zod schema and throws a typed **`IncompleteProfileError`** (with `missingFields`). `rankCandidates` skips incomplete candidates; `/api/match` returns a friendly "hasn't finished their questionnaire yet" instead of NaN/crash. | `lib/matching/errors.ts`, `lib/matching/index.ts`, `api/match/route.ts` |
+
+### Resolves the original audit findings
+- **A/B (substances proxy)** → fixed by Fix 1. An everything-flagger vs a plain default profile went from a **hard-conflict floor** to **93% with no false flag** (`hard=false`); a real substance user only conflicts when the viewer actually flagged substances.
+- **C (floor inverts ranking)** → addressed by Fix 3 + 4 (your chosen ordering: dealbreaker pairs at 40 sit above lifestyle opposites at 27).
+- **D (false reassurance)** → fixed by Fix 2.
+- **E (self ≠ 100)** → fixed by Fix 5.
+- **G (no validation)** → fixed by Fix 6.
+
+## Fixes Applied — Before / After (the 5 explain pairs)
+
+| Pair | v1 overall | v2 overall | What changed in the explanation |
+|---|---|---|---|
+| Early Bird ↔ near-clone | 97% | **99%** | bathroom 60 → 94 (near-clone no longer penalised for shared timing) |
+| Early Bird ↔ Night Owl Gamer | 22% | **40%** | flags **Loud music, Messy room**; the false *"balanced, workable mix"* reason is gone, replaced by an honest friction line |
+| Chill ↔ Studious Introvert | 77% | **78%** | new **Worth discussing** notes (lighting, social, study) instead of a silent 50–77 band |
+| Social Butterfly ↔ Studious Introvert | 22% | **40%** | flag **Frequent guests**; warning moved from a tanked score to an explicit flag |
+| Chill ↔ Substance/Late Nighter | 71% | **71%** | substance use is now *real behavior* — it correctly does **not** fire here because Chill never flagged substances (it would fire for a flagger) |
+
+### New v2 explain output (verbatim)
+
+```
+──────── Early Bird ↔ Night Owl Gamer → 40%  (hardDealbreaker=true)
+  flags: Loud music, Messy room
+  ✓ why you match : —
+  ? worth discussing: This match has notable friction points — review the clashes below before deciding. | Fan preferences differ a touch | Sleep timings differ a little | Some difference in noise comfort
+  ~ might be a prob: late-night vs early sleeper | lights early vs late | one more social | budgets differ
+  ✗ potential clash: loud music | tidiness gap flagged as a dealbreaker | different outings | sharing | one tidier
+
+──────── Chill ↔ Studious Introvert → 78%  (hardDealbreaker=false)
+  ✓ why you match : similar sleep | travel similarly | similar temperature | noise lines up
+  ? worth discussing: Minor lighting differences | Somewhat different social energy | You focus a bit differently
+  (no annoyances / clashes)
+
+──────── Social Butterfly ↔ Studious Introvert → 40%  (hardDealbreaker=true)
+  flags: Frequent guests
+  ✓ why you match : similar sleep | bathroom complements | noise lines up | similar temperature
+  ✗ potential clash: Frequent guests flagged as a dealbreaker | one more social | sharing | different outings
+
+──────── Chill ↔ Substance/Late Nighter → 71%  (hardDealbreaker=false)
+  ✓ why you match : social energy aligned | noise lines up | bathroom complements | similar temperature
+  (substance use no longer mis-handled; would flag only if the viewer declared it a dealbreaker)
+```
+
+## Remaining notes / risks (post-fix)
+- **A substance user is still "quiet" to a non-flagger** (Chill ↔ Substance/Late = 71%, no flag). This is now *correct by design* — dealbreakers only fire when the viewer declares they care — but it means discovery of substance use depends on the *viewer* having flagged it. If you want it surfaced regardless, that's a separate product call.
+- **Validation cost:** `scorePair` runs a Zod parse on both inputs every call, so `rankCandidates` re-parses `me` once per candidate. Fine at current scale; if cohorts grow, validate `me` once in the API route and skip re-validation in the loop.
+- **Behavior backfill is per-user, opt-in via the modal.** Until a user fills it, their substance/non-veg is `unknown` (no conflict, soft note) — intended, no data was inferred from old answers.
+- **Tuning constants** live at the top of `lib/matching/index.ts` (`HARD_PENALTY=15`, `SOFT_PENALTY=5`, `DEALBREAKER_FLOOR=40`, `LIFESTYLE_FLOOR=27`) — easy to adjust if you want different separation.

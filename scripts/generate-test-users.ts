@@ -11,6 +11,7 @@
  */
 import { defaultQuestionnaire } from "@/config/questionnaire";
 import type {
+  BehaviorFreq,
   Category,
   Freq,
   Importance,
@@ -74,9 +75,11 @@ export function earlyBirdNeatFreak(uid = "early-bird"): Questionnaire {
   q.outingPersona = ["nature", "cafe"];
   q.travel = { maxKm: 10, style: "planned" };
   q.sharing = { food: "no", clothes: "no", cosmetics: "no" };
+  q.behavior = { substances: "never", nonveg: "never" };
   q.importance = { ...q.importance, cleanliness: 2, noise: 2, sleep: 1 };
   q.dealbreakers = {
     ...q.dealbreakers,
+    substances: "dealbreaker",
     messyRoom: "dealbreaker",
     loudMusic: "dealbreaker",
     lateSleeping: "annoying",
@@ -99,6 +102,7 @@ export function nightOwlGamer(uid = "night-owl"): Questionnaire {
   q.outingPersona = ["arcade", "nightlife"];
   q.travel = { maxKm: 40, style: "spontaneous" };
   q.sharing = { food: "yes", clothes: "yes", cosmetics: "maybe" };
+  q.behavior = { substances: "never", nonveg: "occasionally" };
   q.importance = { ...q.importance, noise: 1, social: 1 };
   return q;
 }
@@ -118,6 +122,7 @@ export function studiousIntrovert(uid = "studious"): Questionnaire {
   q.outingPersona = ["nature", "cafe"];
   q.travel = { maxKm: 12, style: "planned" };
   q.sharing = { food: "no", clothes: "no", cosmetics: "maybe" };
+  q.behavior = { substances: "never", nonveg: "never" };
   q.importance = { ...q.importance, study: 2, noise: 1, sleep: 1 };
   q.dealbreakers = {
     ...q.dealbreakers,
@@ -142,6 +147,7 @@ export function socialButterfly(uid = "social"): Questionnaire {
   q.outingPersona = ["shopping", "cafe", "nightlife", "sports"];
   q.travel = { maxKm: 50, style: "spontaneous" };
   q.sharing = { food: "yes", clothes: "yes", cosmetics: "yes" };
+  q.behavior = { substances: "occasionally", nonveg: "regularly" };
   q.importance = { ...q.importance, social: 2 };
   return q;
 }
@@ -150,6 +156,7 @@ export function socialButterfly(uid = "social"): Questionnaire {
 export function chillMiddleGround(uid = "chill"): Questionnaire {
   const q = defaultQuestionnaire(uid);
   q.outingPersona = ["cafe", "nature", "sports"];
+  q.behavior = { substances: "never", nonveg: "occasionally" };
   return q;
 }
 
@@ -170,7 +177,9 @@ export function substanceLateNighter(uid = "substance-late"): Questionnaire {
   q.outingPersona = ["nightlife", "arcade"];
   q.travel = { maxKm: 35, style: "spontaneous" };
   q.sharing = { food: "maybe", clothes: "no", cosmetics: "no" };
-  // substances + nonveg deliberately left "okay" (= "exhibits" in the model).
+  // Fix 1: behavior is explicit now — this person genuinely uses substances and
+  // eats non-veg in the room, so they "exhibit" both.
+  q.behavior = { substances: "regularly", nonveg: "occasionally" };
   return q;
 }
 
@@ -207,6 +216,13 @@ const PERSONAS: Persona[] = [
 ];
 const TRIS: Tri[] = ["no", "maybe", "yes"];
 const STANCES: Stance[] = ["okay", "annoying", "dealbreaker"];
+const BEHAVIORS: (BehaviorFreq | null)[] = [
+  "never",
+  "occasionally",
+  "regularly",
+  "prefer_not",
+  null,
+];
 
 /** One reproducible random (but schema-valid) questionnaire. */
 export function randomQuestionnaire(
@@ -246,6 +262,7 @@ export function randomQuestionnaire(
     style: pick(["spontaneous", "planned"] as const),
   };
   q.sharing = { food: pick(TRIS), clothes: pick(TRIS), cosmetics: pick(TRIS) };
+  q.behavior = { substances: pick(BEHAVIORS), nonveg: pick(BEHAVIORS) };
 
   const importance = { ...q.importance };
   (Object.keys(importance) as Category[]).forEach((c) => {

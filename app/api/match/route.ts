@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb, uidFromAuthHeader } from "@/lib/firebase/admin";
-import { scorePair } from "@/lib/matching";
+import { scorePair, IncompleteProfileError } from "@/lib/matching";
 import type { Questionnaire } from "@/types";
 
 export const runtime = "nodejs";
@@ -24,9 +24,20 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ result: null });
   }
 
-  const result = scorePair(
-    myQSnap.data() as Questionnaire,
-    theirQSnap.data() as Questionnaire,
-  );
-  return NextResponse.json({ result });
+  try {
+    const result = scorePair(
+      myQSnap.data() as Questionnaire,
+      theirQSnap.data() as Questionnaire,
+    );
+    return NextResponse.json({ result });
+  } catch (e) {
+    if (e instanceof IncompleteProfileError) {
+      // Fix 6: friendly message instead of a NaN/crash.
+      return NextResponse.json({
+        result: null,
+        error: "This user hasn't finished their questionnaire yet.",
+      });
+    }
+    throw e;
+  }
 }
