@@ -23,6 +23,7 @@ import type {
   User,
 } from "@/types";
 import type { PublicProfile } from "@/lib/api/types";
+import { normaliseUserPrefs } from "./normalise";
 
 function converter<T>() {
   return {
@@ -45,7 +46,9 @@ const msgCol = collection(db, "messages").withConverter(converter<Message>());
 
 export async function getUser(uid: string): Promise<User | null> {
   const snap = await getDoc(doc(usersCol, uid));
-  return snap.exists() ? snap.data() : null;
+  // Migrate legacy singular hostel/roomType → prefs arrays on read so the
+  // profile detail page matches the (already-normalised) matches list.
+  return snap.exists() ? normaliseUserPrefs(snap.data()) : null;
 }
 
 export async function saveUser(user: User): Promise<void> {
