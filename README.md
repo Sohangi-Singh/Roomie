@@ -38,12 +38,19 @@ the server; everyone else only sees the resulting compatibility, never your inpu
 - **Delightful onboarding** — a multi-step questionnaire built from sliders, chips,
   time pickers and range bars, with progress, spring transitions and skeleton loaders.
 - **Real compatibility scoring** — weighted, category-wise matching with importance
-  flags and hard dealbreaker penalties, plus human-readable "why you match" and
-  "potential clashes" insights.
+  flags, plus human-readable "why you match" and "potential clashes" insights.
+- **Honest dealbreakers (v3)** — for six behaviours (loud music, frequent guests, late
+  sleeping, messy room, substances, non-veg food) everyone declares a 4-option stance:
+  *Will do · Fine · Annoying · Dealbreaker*. Penalties depend on **both** people's
+  stances — someone who *does* the thing against someone who *can't live with it* is a
+  hard conflict; against someone who merely finds it annoying, a medium one. Conflicts
+  are flagged with severity, never hidden.
 - **Match results & Explore** — a sorted list with compatibility rings and a radar
   chart, plus a filterable Explore page (year, hostel, room type, sleep, cleanliness,
   spending tier, outing vibe, minimum match).
 - **Groups** — create 2- or 3-sharing groups and let compatible people request open spots.
+- **Connections & realtime DMs** — send a request, chat once you're both connected,
+  and get a live unread badge on the DMs tab for new requests and messages.
 - **Private contact** — phone / Instagram are revealed only after a mutual connection.
   No public reviews. No toxic feeds. No ranking people.
 - **Same-gender, same-year-aware** matching, with hostel room-type rules encoded exactly
@@ -97,14 +104,24 @@ Matching is **privacy-first**: the browser never downloads anyone else's answers
   asymmetric "discomfort" model (a real clash, not mere difference); sleep/wake use
   circular-time similarity; temperature compares summer **and** winter fan preferences.
 - Scores combine with **importance-weighted** weights — if either person flags a category
-  as important, it counts for more.
-- **Dealbreakers** are applied last: an absolute dealbreaker conflict craters the score;
-  annoyances chip away at it.
+  as important, it counts for more. Dealbreaker stances are **excluded** from this base.
+- **Dealbreaker penalties (v3)** are applied last as absolute deductions, then the score
+  is floored at 35. Each of the six behaviours pairs one person's *doing* against the
+  other's *tolerance*: does-it × can't-live-with-it → **−35 (hard, red flag)**;
+  does-it × finds-it-annoying → **−17 (medium, "worth discussing")**;
+  fine-with-it × finds-it-annoying → **−3 (mild, never surfaced)**. Matching stances
+  never add points. Penalties stack additively and are symmetric in both orderings.
 - Insights are generated from the strongest and weakest categories plus any dealbreaker
-  conflicts.
+  conflicts, with severity-aware directional copy ("they'll play audio out loud, and you
+  can't live with that").
+
+Legacy answers (the old 3-option format) are migrated on read — *Okay* maps to *Fine*,
+and *Will do* is **never** auto-assigned; existing users are asked once, via a modal,
+what they actually do.
 
 ```bash
-npm test   # runs the matching-engine unit tests
+npm test   # matching-engine unit tests + the full audit spec (penalty matrix,
+           # composites, migration, invariants, explain pairs)
 ```
 
 ## Getting started
@@ -177,26 +194,30 @@ npm run dev      # http://localhost:3000
 ```
 app/
   (auth)/                 login · signup
-  (app)/                  authed shell (bottom nav):
-                          matches · explore · groups · connections · settings · profile/[id]
+  (app)/                  authed shell (bottom nav): matches · explore · groups ·
+                          connections (+ [uid] chat) · settings · profile/[id]
   onboarding/             multi-step questionnaire
   api/matches · api/match server-side, private compatibility (Admin SDK)
   page.tsx                landing
 components/
   ui/                     Button · Card · Slider · RangeBar · TimePicker · Toggle · Chip ·
-                          Segmented · Avatar · ProgressRing · Skeleton · BottomSheet · BottomNav · Input
+                          Segmented · Avatar · ProgressRing · Skeleton · BottomSheet ·
+                          BottomNav · TopNav · Input
   features/               RadarChart · MatchCard · MatchList · InsightList · CategoryBreakdown ·
-                          FilterSheet · GroupCard · QuestionStep · ConnectButton · Brand · RequireAuth
+                          FilterSheet · GroupCard · QuestionStep · DealbreakerQuestions ·
+                          DealbreakerPrompt · ConnectButton · Brand · RequireAuth
 lib/
-  firebase/               client · auth · db · admin
-  matching/               scoring · weights · insights · index  (+ __tests__)
+  firebase/               client · auth · db · admin · normalise
+  matching/               scoring · weights · insights · version · index  (+ __tests__)
   api/                    types · matches (client fetch helpers)
   utils/                  cn · format
-hooks/                    useAuth · useMatches · useGroups · useConnections · useHaptics · useMediaQuery
-stores/                   authStore · onboardingStore · filterStore · matchesStore
+hooks/                    useAuth · useMatches · useGroups · useConnections · useChat ·
+                          useInboxBadge · useHaptics · useMediaQuery
+stores/                   authStore · onboardingStore · filterStore · matchesStore · themeStore
 types/                    user · questionnaire · group · connection
 config/                   tokens · college · hostels · questionnaire
 firestore.rules           security rules
+MATCHING_AUDIT.md         algorithm audit trail (v1 → v3, explain pairs, deferred list)
 ```
 
 ## Security & privacy
@@ -222,13 +243,17 @@ firestore.rules           security rules
   Uniworld 1 (Neeladri) · female → Small Double; Uniworld 2 (Velankani) · female → Triple
   or Small Double; Uniworld 1 · male → Large/Small Double or Triple; Uniworld 2 · male →
   Small Double or Triple.
-- Some dealbreaker behaviours (e.g. substances, non-veg) are inferred from a person's own
-  stance, since there's no separate behaviour question.
+- Dealbreaker behaviours are **declared, not inferred**: the 4-option stance asks what
+  you *do* as well as what you can't live with, so penalties are grounded in both
+  people's actual answers (`dealbreakersVersion: 3` on the questionnaire doc).
 
 ## Roadmap
 
 - Precompute matches in a scheduled Cloud Function for flat read-cost at large scale.
 - Move contact details behind the server so they're only fetched after a mutual connection.
+- Harden Firestore rules (status-transition checks on connections, server-enforced group slots).
+- Conversation-scoped message queries (indexed, limited) for chat at scale.
+- Partial-questionnaire scoring with an "incomplete" badge.
 - Profile photo uploads (Firebase Storage).
 
 ## License
