@@ -156,10 +156,12 @@ export function spendingScore(a: Questionnaire, b: Questionnaire): number {
 export function outingScore(a: Questionnaire, b: Questionnaire): number {
   const A = new Set(a.outingPersona);
   const B = new Set(b.outingPersona);
-  if (A.size === 0 && B.size === 0) return 60;
+  // The persona step is skippable — no data on either side is neutral,
+  // not a maximal mismatch.
+  if (A.size === 0 || B.size === 0) return 60;
   const intersection = [...A].filter((x) => B.has(x)).length;
   const union = new Set([...A, ...B]).size;
-  return Math.round(union === 0 ? 60 : (intersection / union) * 100);
+  return Math.round((intersection / union) * 100);
 }
 
 export function travelScore(a: Questionnaire, b: Questionnaire): number {

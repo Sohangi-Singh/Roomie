@@ -478,7 +478,7 @@ export const STEPS: Step[] = [
     id: "dealbreakers",
     kind: "dealbreakers",
     title: "Any dealbreakers?",
-    subtitle: "Choose dealbreakers carefully and minimally.",
+    subtitle: "Be honest about what you'll do — and what you can't live with.",
   },
 ];
 

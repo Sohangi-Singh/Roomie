@@ -332,11 +332,14 @@ changed any algorithm code** — these are yours to decide.
 | P2 | Missing-compatibility explanation: `/api/match`'s reason ("This user hasn't finished their questionnaire yet.") now reaches the UI; the API also sends it when the target questionnaire doc is missing (same semantics) | The client discarded the reason and silently omitted the whole compatibility section | blank section → one neutral card line | typecheck/lint/build green |
 | P3 | Chat error copy: removed pre-launch debug text "Once the Firestore rules are live…" | Stale internal copy shipped to users | → "Check your connection and refresh the page to try again." | copy only |
 
-## Proposed but not approved this round (on record)
+## Approved in a later round (now implemented)
 
-- **P1** — `outingScore` skipped-persona fix (empty persona set scores Jaccard 0 against any non-empty set; proposed neutral 60). Visible above: outing=0 for the Substance/Late-Nighter pairs.
+- **P1** — `outingScore` skipped-persona fix: if *either* side selected zero personas, return the neutral 60 instead of Jaccard 0 (the persona step is skippable; absence of data is not a maximal mismatch). Tests: empty×nonempty = 60 both orderings, empty×empty = 60, non-empty pairs unchanged (Jaccard 33/100/0). The 5 explain pairs are unaffected — their outing=0 cases are disjoint *non-empty* sets.
+- **P5** — Dealbreakers step subtitle updated for the 4-option format: "Be honest about what you'll do — and what you can't live with." (option labels unchanged per spec).
+
+## Proposed but not approved (on record)
+
 - **P4** — Security-rules gaps (sender can accept own request; `/meta/{id}` writable by any signed-in user; group joins only enforced client-side). Rules file untouched per guardrails.
-- **P5** — Dealbreakers step subtitle predates the 4-option format.
 
 ## Noted for later (deferred)
 

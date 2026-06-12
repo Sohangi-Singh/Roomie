@@ -9,6 +9,7 @@ import {
   simFreq,
   noiseScore,
   bathroomScore,
+  outingScore,
   dealbreakerConflicts,
 } from "@/lib/matching/scoring";
 
@@ -96,6 +97,37 @@ describe("bathroomScore (shared resource — different is better)", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
     expect(bathroomScore(a, b)).toBeGreaterThanOrEqual(50);
+  });
+});
+
+describe("outingScore (skippable persona step)", () => {
+  it("a skipper scores neutral 60 against anyone who picked personas", () => {
+    const skipper = defaultQuestionnaire("a");
+    const picker = defaultQuestionnaire("b");
+    skipper.outingPersona = [];
+    picker.outingPersona = ["cafe", "nightlife"];
+    expect(outingScore(skipper, picker)).toBe(60);
+    expect(outingScore(picker, skipper)).toBe(60);
+  });
+
+  it("two skippers score neutral 60", () => {
+    const a = defaultQuestionnaire("a");
+    const b = defaultQuestionnaire("b");
+    a.outingPersona = [];
+    b.outingPersona = [];
+    expect(outingScore(a, b)).toBe(60);
+  });
+
+  it("non-empty sets still use Jaccard", () => {
+    const a = defaultQuestionnaire("a");
+    const b = defaultQuestionnaire("b");
+    a.outingPersona = ["cafe", "nature"];
+    b.outingPersona = ["cafe", "nightlife"];
+    expect(outingScore(a, b)).toBe(33); // 1 shared of 3 distinct
+    b.outingPersona = ["cafe", "nature"];
+    expect(outingScore(a, b)).toBe(100);
+    b.outingPersona = ["nightlife"];
+    expect(outingScore(a, b)).toBe(0);
   });
 });
 
