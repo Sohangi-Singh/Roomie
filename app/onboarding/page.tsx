@@ -70,10 +70,14 @@ const profileSchema = z.object({
   bio: z.string().optional(),
 });
 
+// Steps fade/slide vertically, never horizontally: the step container clips
+// x-overflow, and an interrupted x-translation (throttled rAF on mobile,
+// reduced motion) used to freeze mid-flight and leave every control clipped
+// at the screen edge. Vertical motion can't clip controls horizontally.
 const slide: Variants = {
-  enter: (d: number) => ({ x: d > 0 ? 36 : -36, opacity: 0 }),
-  center: { x: 0, opacity: 1 },
-  exit: (d: number) => ({ x: d > 0 ? -36 : 36, opacity: 0 }),
+  enter: (d: number) => ({ y: d > 0 ? 18 : -18, opacity: 0 }),
+  center: { y: 0, opacity: 1 },
+  exit: (d: number) => ({ y: d > 0 ? -18 : 18, opacity: 0 }),
 };
 
 function validateStep(step: number, p: Partial<UserProfileInput>): boolean {
