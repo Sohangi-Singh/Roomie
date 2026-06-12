@@ -5,22 +5,21 @@ import { useAuthStore } from "@/stores/authStore";
 import { subscribeToInbox } from "@/lib/firebase/db";
 import type { Connection, Message } from "@/types";
 
-const KEY = "roomie-inbox-seen";
-const CHAT_KEY = (peerUid: string) => `roomie-chat-seen-${peerUid}`;
+// Seen-state keys are namespaced by the signed-in uid — a browser can hold
+// several accounts over time, and one account's "seen" must not silence
+// another account's badge.
+const KEY = (uid: string) => `roomie-inbox-seen-${uid}`;
+const CHAT_KEY = (uid: string, peerUid: string) =>
+  `roomie-chat-seen-${uid}-${peerUid}`;
 const SEEN_EVENT = "roomie-inbox-seen";
 
-function loadLastSeen(): number {
-  try {
-    const v = localStorage.getItem(KEY);
-    return v ? Number(v) || 0 : 0;
-  } catch {
-    return 0;
-  }
+function myUid(): string | null {
+  return useAuthStore.getState().fbUser?.uid ?? null;
 }
 
-function loadChatLastSeen(peerUid: string): number {
+function load(key: string): number {
   try {
-    const v = localStorage.getItem(CHAT_KEY(peerUid));
+    const v = localStorage.getItem(key);
     return v ? Number(v) || 0 : 0;
   } catch {
     return 0;
@@ -29,8 +28,10 @@ function loadChatLastSeen(peerUid: string): number {
 
 /** Call when the user views the DMs list — clears the request badge. */
 export function markInboxSeen(): void {
+  const uid = myUid();
+  if (!uid) return;
   try {
-    localStorage.setItem(KEY, String(Date.now()));
+    localStorage.setItem(KEY(uid), String(Date.now()));
   } catch {
     /* private mode / quota — ignore */
   }
@@ -41,8 +42,10 @@ export function markInboxSeen(): void {
 
 /** Call when the user is viewing a specific chat — clears its unread tally. */
 export function markChatSeen(peerUid: string): void {
+  const uid = myUid();
+  if (!uid) return;
   try {
-    localStorage.setItem(CHAT_KEY(peerUid), String(Date.now()));
+    localStorage.setItem(CHAT_KEY(uid, peerUid), String(Date.now()));
   } catch {
     /* ignore */
   }
@@ -75,13 +78,13 @@ export function useInboxBadge(): number {
     }
     const recount = () => {
       const { connections, messages } = dataRef.current;
-      const lastInbox = loadLastSeen();
+      const lastInbox = load(KEY(uid));
       const unseenRequests = connections.filter(
         (c) =>
           c.status === "pending" && c.to === uid && c.createdAt > lastInbox,
       ).length;
       const unseenMessages = messages.filter(
-        (m) => m.to === uid && m.createdAt > loadChatLastSeen(m.from),
+        (m) => m.to === uid && m.createdAt > load(CHAT_KEY(uid, m.from)),
       ).length;
       setCount(unseenRequests + unseenMessages);
     };
@@ -92,7 +95,10 @@ export function useInboxBadge(): number {
         dataRef.current = data;
         recount();
       },
-      () => setCount(0),
+      (err) => {
+        console.warn("[inbox badge] subscription error:", err);
+        setCount(0);
+      },
     );
     window.addEventListener(SEEN_EVENT, recount);
     return () => {
