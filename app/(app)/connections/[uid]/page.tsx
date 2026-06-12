@@ -204,7 +204,7 @@ export default function ChatPage() {
             >
               <div
                 className={cn(
-                  "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed",
+                  "max-w-[78%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed lg:max-w-[62%]",
                   mine
                     ? "bg-accent-500 text-canvas"
                     : "bg-surface text-ink shadow-soft ring-1 ring-line",

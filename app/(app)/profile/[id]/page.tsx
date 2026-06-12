@@ -153,60 +153,66 @@ export default function ProfilePage() {
 
       {match && (
         <>
-          <Card className="mt-6 flex flex-col items-center">
-            <ProgressRing
-              value={match.overall}
-              size={124}
-              stroke={11}
-              sublabel="compatibility"
-            />
-            <p className="mt-3 max-w-xs text-center text-sm text-muted">
-              {verdict(match.overall)}
-            </p>
-          </Card>
+          {/* Desktop (lg) pairs the cards two-up; lg:order-* keeps the mobile
+              DOM order (score → banner → radar) rendering exactly as before. */}
+          <div className="mt-6 lg:grid lg:grid-cols-2 lg:items-stretch lg:gap-4">
+            <Card className="flex flex-col items-center justify-center lg:order-1">
+              <ProgressRing
+                value={match.overall}
+                size={124}
+                stroke={11}
+                sublabel="compatibility"
+              />
+              <p className="mt-3 max-w-xs text-center text-sm text-muted">
+                {verdict(match.overall)}
+              </p>
+            </Card>
 
-          {(() => {
-            // Hard conflicts get the red banner; medium ones are covered in
-            // the "Worth discussing" insights below (§3.6). Mild never shows.
-            const hardFlags = match.dealbreakerFlags.filter(
-              (f) => f.severity === "hard",
-            );
-            if (hardFlags.length === 0) return null;
-            return (
-              <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-                <p>
-                  <span className="font-semibold">
-                    Dealbreaker{hardFlags.length > 1 ? "s" : ""}:
-                  </span>{" "}
-                  {hardFlags.map((f) => f.label).join(", ")}
-                </p>
-              </div>
-            );
-          })()}
+            {(() => {
+              // Hard conflicts get the red banner; medium ones are covered in
+              // the "Worth discussing" insights below (§3.6). Mild never shows.
+              const hardFlags = match.dealbreakerFlags.filter(
+                (f) => f.severity === "hard",
+              );
+              if (hardFlags.length === 0) return null;
+              return (
+                <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger lg:order-3 lg:col-span-2 lg:mt-0">
+                  <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                  <p>
+                    <span className="font-semibold">
+                      Dealbreaker{hardFlags.length > 1 ? "s" : ""}:
+                    </span>{" "}
+                    {hardFlags.map((f) => f.label).join(", ")}
+                  </p>
+                </div>
+              );
+            })()}
 
-          <Card className="mt-4">
-            <h2 className="mb-1 font-display text-lg font-semibold">
-              Compatibility shape
-            </h2>
-            <RadarChart data={match.radar} />
-          </Card>
+            <Card className="mt-4 lg:order-2 lg:mt-0">
+              <h2 className="mb-1 font-display text-lg font-semibold">
+                Compatibility shape
+              </h2>
+              <RadarChart data={match.radar} />
+            </Card>
+          </div>
 
-          <Card className="mt-4">
-            <h2 className="mb-4 font-display text-lg font-semibold">
-              Category breakdown
-            </h2>
-            <CategoryBreakdown categories={match.categories} />
-          </Card>
+          <div className="mt-4 lg:grid lg:grid-cols-2 lg:items-start lg:gap-4">
+            <Card>
+              <h2 className="mb-4 font-display text-lg font-semibold">
+                Category breakdown
+              </h2>
+              <CategoryBreakdown categories={match.categories} />
+            </Card>
 
-          <Card className="mt-4">
-            <InsightList
-              reasons={match.reasons}
-              worthDiscussing={match.worthDiscussing}
-              annoyances={match.annoyances}
-              conflicts={match.conflicts}
-            />
-          </Card>
+            <Card className="mt-4 lg:mt-0">
+              <InsightList
+                reasons={match.reasons}
+                worthDiscussing={match.worthDiscussing}
+                annoyances={match.annoyances}
+                conflicts={match.conflicts}
+              />
+            </Card>
+          </div>
 
           <div className="mt-5">
             <ConnectButton target={user} />
