@@ -10,6 +10,7 @@ import { Avatar, Card, Button, Skeleton } from "@/components/ui";
 import { EmptyState } from "@/components/features/EmptyState";
 import { ThemeToggle } from "@/components/features/ThemeToggle";
 import { cn } from "@/lib/utils/cn";
+import { batchLabel } from "@/config/college";
 import type { Connection, Message, User } from "@/types";
 
 function formatRelativeTime(ts: number): string {
@@ -227,7 +228,7 @@ function Row({
       >
         <p className="truncate font-medium">{user?.fullName ?? "Student"}</p>
         {user && (
-          <p className="truncate text-xs text-muted">Year {user.year}</p>
+          <p className="truncate text-xs text-muted">{batchLabel(user.year)}</p>
         )}
       </Link>
       {children}

@@ -25,7 +25,7 @@ import {
   ROOM_TYPE_LABELS,
   allowedRoomTypesForHostels,
 } from "@/config/hostels";
-import { YEARS, COLLEGE_NAME } from "@/config/college";
+import { YEARS, BATCH_BY_YEAR, COLLEGE_NAME } from "@/config/college";
 import { defaultQuestionnaire } from "@/config/questionnaire";
 import type { HostelId, RoomType, User, Year } from "@/types";
 
@@ -169,9 +169,12 @@ export default function SettingsPage() {
           />
         </Field>
         <div>
-          <p className="mb-2 text-sm font-medium">Year</p>
+          <p className="mb-2 text-sm font-medium">Batch</p>
           <Segmented
-            options={YEARS.map((y) => ({ value: String(y), label: `Year ${y}` }))}
+            options={YEARS.map((y) => ({
+              value: String(y),
+              label: String(BATCH_BY_YEAR[y]),
+            }))}
             value={String(form.year)}
             onChange={(v) => update({ year: Number(v) as Year })}
           />

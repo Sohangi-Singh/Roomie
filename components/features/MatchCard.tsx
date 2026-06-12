@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { CircleAlert, TriangleAlert } from "lucide-react";
 import { Avatar, Card, ProgressRing } from "@/components/ui";
 import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
+import { batchLabel } from "@/config/college";
 import type { RankedMatch } from "@/hooks/useMatches";
 
 export function MatchCard({
@@ -26,7 +27,7 @@ export function MatchCard({
           <Avatar name={user.fullName} src={user.photoURL} size="lg" ring />
           <div className="min-w-0 flex-1">
             <p className="truncate font-medium">{user.fullName}</p>
-            <p className="truncate text-sm text-muted">Year {user.year}</p>
+            <p className="truncate text-sm text-muted">{batchLabel(user.year)}</p>
             <p className="truncate text-xs text-faint">
               {formatHostelPrefs(user.hostelPrefs)} ·{" "}
               {formatRoomTypePrefs(user.roomTypePrefs)}

@@ -10,6 +10,7 @@ import { markChatSeen } from "@/hooks/useInboxBadge";
 import { getUser } from "@/lib/firebase/db";
 import { Avatar, Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
+import { batchLabel } from "@/config/college";
 import type { User } from "@/types";
 
 function formatTime(ts: number): string {
@@ -115,7 +116,7 @@ export default function ChatPage() {
           </p>
           {other && (
             <p className="truncate text-[11px] text-muted">
-              Year {other.year}
+              {batchLabel(other.year)}
             </p>
           )}
         </div>

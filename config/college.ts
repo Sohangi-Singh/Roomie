@@ -27,3 +27,20 @@ export function isCollegeEmail(email: string): boolean {
 }
 
 export const YEARS = [1, 2, 3, 4] as const;
+
+/**
+ * Graduation-batch label shown everywhere a user's academic year appears.
+ * Display-only: `year` stays numeric in storage, filtering and ranking, and
+ * batch years are ordinally adjacent to years (1↔2029, 2↔2028, …) so any
+ * proximity logic is unaffected.
+ */
+export const BATCH_BY_YEAR: Record<(typeof YEARS)[number], number> = {
+  1: 2029,
+  2: 2028,
+  3: 2027,
+  4: 2026,
+};
+
+export function batchLabel(year: (typeof YEARS)[number]): string {
+  return `Batch ${BATCH_BY_YEAR[year]}`;
+}

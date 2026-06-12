@@ -21,6 +21,7 @@ import { CategoryBreakdown } from "@/components/features/CategoryBreakdown";
 import { ConnectButton } from "@/components/features/ConnectButton";
 import { ThemeToggle } from "@/components/features/ThemeToggle";
 import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
+import { batchLabel } from "@/config/college";
 import { PERSONA_OPTIONS } from "@/config/questionnaire";
 import { formatTime } from "@/lib/utils/format";
 import type { Questionnaire, User } from "@/types";
@@ -132,7 +133,7 @@ export default function ProfilePage() {
         <h1 className="mt-3 font-display text-2xl font-semibold">
           {user.fullName}
         </h1>
-        <p className="text-sm text-muted">Year {user.year}</p>
+        <p className="text-sm text-muted">{batchLabel(user.year)}</p>
         <div className="mt-2.5 flex flex-wrap justify-center gap-1.5">
           <Badge>{formatHostelPrefs(user.hostelPrefs)}</Badge>
           <Badge>{formatRoomTypePrefs(user.roomTypePrefs)}</Badge>

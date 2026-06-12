@@ -3,7 +3,7 @@
 import { Segmented, Chip, Slider, Button } from "@/components/ui";
 import { useFilterStore, type ExploreFilters } from "@/stores/filterStore";
 import { HOSTEL_LIST, ROOM_TYPE_LABELS } from "@/config/hostels";
-import { YEARS } from "@/config/college";
+import { YEARS, BATCH_BY_YEAR } from "@/config/college";
 import { PERSONA_OPTIONS } from "@/config/questionnaire";
 import type { HostelId, RoomType, Year } from "@/types";
 
@@ -30,12 +30,15 @@ export function FilterSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="space-y-6 pb-2">
-      <Row label="Year">
+      <Row label="Batch">
         <Segmented
           size="sm"
           options={[
             { value: "any", label: "Any" },
-            ...YEARS.map((y) => ({ value: String(y), label: String(y) })),
+            ...YEARS.map((y) => ({
+              value: String(y),
+              label: String(BATCH_BY_YEAR[y]),
+            })),
           ]}
           value={String(filters.year)}
           onChange={(v) =>

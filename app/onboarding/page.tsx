@@ -34,7 +34,7 @@ import {
   DEALBREAKERS_VERSION,
   questionnaireSchema,
 } from "@/config/questionnaire";
-import { YEARS } from "@/config/college";
+import { YEARS, BATCH_BY_YEAR } from "@/config/college";
 import {
   ROOM_TYPE_LABELS,
   allowedRoomTypesForHostels,
@@ -389,9 +389,12 @@ function IdentityStep({
         </p>
       </div>
       <div>
-        <p className="mb-2 text-sm font-medium">Year</p>
+        <p className="mb-2 text-sm font-medium">Batch</p>
         <Segmented
-          options={YEARS.map((y) => ({ value: String(y), label: `Year ${y}` }))}
+          options={YEARS.map((y) => ({
+            value: String(y),
+            label: String(BATCH_BY_YEAR[y]),
+          }))}
           value={profile.year ? String(profile.year) : ""}
           onChange={(v) => update({ year: Number(v) as Year })}
         />
