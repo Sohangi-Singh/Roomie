@@ -1,6 +1,6 @@
 "use client";
 
-import type { Category, Questionnaire, Stance } from "@/types";
+import type { Category, Questionnaire } from "@/types";
 import { Slider, Segmented, TimePicker, RangeBar, Chip } from "@/components/ui";
 import { CategoryIcon } from "./CategoryIcon";
 import {
@@ -8,13 +8,12 @@ import {
   PERSONA_OPTIONS,
   CATEGORIES,
   CATEGORY_META,
-  DEALBREAKER_META,
-  STANCE_OPTIONS,
   type Field,
   type Step,
 } from "@/config/questionnaire";
 import { formatINR, formatKm, formatDuration } from "@/lib/utils/format";
 import { cn } from "@/lib/utils/cn";
+import { DealbreakerQuestions } from "./DealbreakerQuestions";
 
 type Patch = Partial<Questionnaire>;
 
@@ -33,7 +32,12 @@ export function QuestionStep({
     return <PersonaStep answers={answers} onChange={onChange} />;
   if (step.kind === "importance")
     return <ImportanceStep answers={answers} onChange={onChange} />;
-  return <DealbreakersStep answers={answers} onChange={onChange} />;
+  return (
+    <DealbreakerQuestions
+      value={answers.dealbreakers}
+      onChange={(dealbreakers) => onChange({ dealbreakers })}
+    />
+  );
 }
 
 /* --------------------------- category fields ---------------------------- */
@@ -276,32 +280,3 @@ function ImportanceStep({
   );
 }
 
-/* ---------------------------- dealbreakers ------------------------------ */
-
-function DealbreakersStep({
-  answers,
-  onChange,
-}: {
-  answers: Questionnaire;
-  onChange: (patch: Patch) => void;
-}) {
-  const db = answers.dealbreakers;
-  const set = (key: string, v: string) =>
-    onChange({ dealbreakers: { ...db, [key]: v as Stance } });
-  return (
-    <div className="space-y-3">
-      {DEALBREAKER_META.map((d) => (
-        <div key={d.key} className="rounded-2xl bg-surface p-4 shadow-soft">
-          <p className="text-sm font-medium">{d.label}</p>
-          <p className="mb-3 text-xs text-muted">{d.desc}</p>
-          <Segmented
-            size="sm"
-            options={STANCE_OPTIONS}
-            value={db[d.key]}
-            onChange={(v) => set(d.key, v)}
-          />
-        </div>
-      ))}
-    </div>
-  );
-}

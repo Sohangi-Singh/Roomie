@@ -23,6 +23,10 @@ import type {
   User,
 } from "@/types";
 import type { PublicProfile } from "@/lib/api/types";
+import {
+  DEALBREAKERS_VERSION,
+  migrateQuestionnaire,
+} from "@/config/questionnaire";
 import { normaliseUserPrefs } from "./normalise";
 
 function converter<T>() {
@@ -68,7 +72,24 @@ export async function getQuestionnaire(
   uid: string,
 ): Promise<Questionnaire | null> {
   const snap = await getDoc(doc(qCol, uid));
-  return snap.exists() ? snap.data() : null;
+  if (!snap.exists()) return null;
+  // Read-time migration (v3): map legacy 3-option stances (okay→fine, never
+  // auto-"willDo") and drop the removed v2 behavior field. The user is asked
+  // to re-answer via the DealbreakerPrompt modal until dealbreakersVersion=3.
+  return migrateQuestionnaire(snap.data());
+}
+
+/** Save the v3 4-option dealbreaker answers (one-time migration modal). */
+export async function updateQuestionnaireDealbreakers(
+  uid: string,
+  dealbreakers: Questionnaire["dealbreakers"],
+): Promise<void> {
+  await updateDoc(doc(db, "questionnaires", uid), {
+    dealbreakers,
+    dealbreakersVersion: DEALBREAKERS_VERSION,
+  });
+  // Dealbreakers drive penalties/flags, so refresh everyone's match list.
+  await bumpMatchesVersion().catch(() => undefined);
 }
 
 export async function saveQuestionnaire(
@@ -217,10 +238,37 @@ export async function getLastMessagesByPeer(
   return byPeer;
 }
 
-/** All messages addressed to `uid`. Used by the DMs badge to count unread. */
-export async function getMessagesTo(uid: string): Promise<Message[]> {
-  const snap = await getDocs(query(msgCol, where("to", "==", uid)));
-  return snap.docs.map((d) => d.data());
+/** Live feed of every message involving `uid`, plus all their connections —
+ *  used by the DMs badge. Both query by `participants array-contains` because
+ *  the security rules only admit that shape (a `to ==` filter can't prove the
+ *  caller is a participant, so Firestore rejects it). Returns unsubscribe. */
+export function subscribeToInbox(
+  uid: string,
+  cb: (data: { connections: Connection[]; messages: Message[] }) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  let connections: Connection[] = [];
+  let messages: Message[] = [];
+  const u1 = onSnapshot(
+    query(connCol, where("participants", "array-contains", uid)),
+    (snap) => {
+      connections = snap.docs.map((d) => d.data());
+      cb({ connections, messages });
+    },
+    onError,
+  );
+  const u2 = onSnapshot(
+    query(msgCol, where("participants", "array-contains", uid)),
+    (snap) => {
+      messages = snap.docs.map((d) => d.data());
+      cb({ connections, messages });
+    },
+    onError,
+  );
+  return () => {
+    u1();
+    u2();
+  };
 }
 
 /* ---------------------------- matches version --------------------------- */

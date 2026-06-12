@@ -239,3 +239,151 @@ Step 1 — never in scoring code.
 The math is sound and predictable. The risks are **product/semantic**, concentrated in
 (1) how substances/non-veg are inferred and (2) how matches are *explained*. I have **not
 changed any algorithm code** — these are yours to decide.
+
+---
+
+# Fixes Applied — v2 (branch `algorithm-fixes-v2`)
+
+> Implemented the six fixes on a dedicated branch (not merged). `ALGORITHM_VERSION`
+> bumped **1 → 2** in `lib/matching/version.ts`. Full suite: **49 passed** (18 existing
+> lib tests adjusted + 31 v2 spec tests). `typecheck` / `lint` / `build` all green.
+> Run: `npm test` or `npx vitest run __tests__/matching.spec.ts --reporter=verbose`.
+
+| Fix | What changed | Key files |
+|---|---|---|
+| **1 — behavior, not tolerance** | New private `behavior.{substances,nonveg}` field (`Never/Occasionally/Regularly/Prefer not to say`, default `null`). `exhibits()` now reads it; `null`/`prefer_not` = **unknown** → no conflict, but a neutral "haven't shared" note. Read-migration defaults old docs to `null`; a `BehaviorPrompt` modal backfills onboarded users; onboarding gained the two questions. | `types/questionnaire.ts`, `config/questionnaire.ts`, `lib/matching/scoring.ts`, `lib/firebase/db.ts`, `components/features/BehaviorQuestions.tsx` + `BehaviorPrompt.tsx`, `QuestionStep.tsx`, `(app)/layout.tsx` |
+| **2 — honest copy** | Reassuring fallback is suppressed when `overall < 60`, a hard dealbreaker exists, or any category `< 30` — replaced by an honest neutral line. New neutral **"Worth discussing"** band surfaces 50–77 categories. | `lib/matching/insights.ts`, `components/features/InsightList.tsx` |
+| **3 — dealbreaker penalty + flag** | Honest score first, then **−15 per hard / −5 per soft**, floor **40** (no more ×0.25 crater to 22). `dealbreakerFlags: string[]` added to `MatchResult` → ⚠️ badge on cards (now lists *which* dealbreakers) + a prominent banner in the detail view. | `lib/matching/index.ts`, `MatchCard.tsx`, `profile/[id]/page.tsx` |
+| **4 — lifestyle floor** | Non-dealbreaker pairs floor at **27** (was ~5), so they sit *below* dealbreaker pairs (40). | `lib/matching/index.ts` |
+| **5 — self = 100 / near-clone** | `scorePair(user,user)` short-circuits to **exactly 100**, no insights. Bathroom timing reworked (identical timing 85 → opposite 100 instead of 0→100) so a **near-clone now scores 99** (was 97) and bathroom no longer caps at 60. | `lib/matching/index.ts`, `lib/matching/scoring.ts` |
+| **6 — input validation** | `scorePair` validates both questionnaires with the Zod schema and throws a typed **`IncompleteProfileError`** (with `missingFields`). `rankCandidates` skips incomplete candidates; `/api/match` returns a friendly "hasn't finished their questionnaire yet" instead of NaN/crash. | `lib/matching/errors.ts`, `lib/matching/index.ts`, `api/match/route.ts` |
+
+### Resolves the original audit findings
+- **A/B (substances proxy)** → fixed by Fix 1. An everything-flagger vs a plain default profile went from a **hard-conflict floor** to **93% with no false flag** (`hard=false`); a real substance user only conflicts when the viewer actually flagged substances.
+- **C (floor inverts ranking)** → addressed by Fix 3 + 4 (your chosen ordering: dealbreaker pairs at 40 sit above lifestyle opposites at 27).
+- **D (false reassurance)** → fixed by Fix 2.
+- **E (self ≠ 100)** → fixed by Fix 5.
+- **G (no validation)** → fixed by Fix 6.
+
+## Fixes Applied — Before / After (the 5 explain pairs)
+
+| Pair | v1 overall | v2 overall | What changed in the explanation |
+|---|---|---|---|
+| Early Bird ↔ near-clone | 97% | **99%** | bathroom 60 → 94 (near-clone no longer penalised for shared timing) |
+| Early Bird ↔ Night Owl Gamer | 22% | **40%** | flags **Loud music, Messy room**; the false *"balanced, workable mix"* reason is gone, replaced by an honest friction line |
+| Chill ↔ Studious Introvert | 77% | **78%** | new **Worth discussing** notes (lighting, social, study) instead of a silent 50–77 band |
+| Social Butterfly ↔ Studious Introvert | 22% | **40%** | flag **Frequent guests**; warning moved from a tanked score to an explicit flag |
+| Chill ↔ Substance/Late Nighter | 71% | **71%** | substance use is now *real behavior* — it correctly does **not** fire here because Chill never flagged substances (it would fire for a flagger) |
+
+### New v2 explain output (verbatim)
+
+```
+──────── Early Bird ↔ Night Owl Gamer → 40%  (hardDealbreaker=true)
+  flags: Loud music, Messy room
+  ✓ why you match : —
+  ? worth discussing: This match has notable friction points — review the clashes below before deciding. | Fan preferences differ a touch | Sleep timings differ a little | Some difference in noise comfort
+  ~ might be a prob: late-night vs early sleeper | lights early vs late | one more social | budgets differ
+  ✗ potential clash: loud music | tidiness gap flagged as a dealbreaker | different outings | sharing | one tidier
+
+──────── Chill ↔ Studious Introvert → 78%  (hardDealbreaker=false)
+  ✓ why you match : similar sleep | travel similarly | similar temperature | noise lines up
+  ? worth discussing: Minor lighting differences | Somewhat different social energy | You focus a bit differently
+  (no annoyances / clashes)
+
+──────── Social Butterfly ↔ Studious Introvert → 40%  (hardDealbreaker=true)
+  flags: Frequent guests
+  ✓ why you match : similar sleep | bathroom complements | noise lines up | similar temperature
+  ✗ potential clash: Frequent guests flagged as a dealbreaker | one more social | sharing | different outings
+
+──────── Chill ↔ Substance/Late Nighter → 71%  (hardDealbreaker=false)
+  ✓ why you match : social energy aligned | noise lines up | bathroom complements | similar temperature
+  (substance use no longer mis-handled; would flag only if the viewer declared it a dealbreaker)
+```
+
+## Remaining notes / risks (post-fix)
+- **A substance user is still "quiet" to a non-flagger** (Chill ↔ Substance/Late = 71%, no flag). This is now *correct by design* — dealbreakers only fire when the viewer declares they care — but it means discovery of substance use depends on the *viewer* having flagged it. If you want it surfaced regardless, that's a separate product call.
+- **Validation cost:** `scorePair` runs a Zod parse on both inputs every call, so `rankCandidates` re-parses `me` once per candidate. Fine at current scale; if cohorts grow, validate `me` once in the API route and skip re-validation in the loop.
+- **Behavior backfill is per-user, opt-in via the modal.** Until a user fills it, their substance/non-veg is `unknown` (no conflict, soft note) — intended, no data was inferred from old answers.
+- **Tuning constants** live at the top of `lib/matching/index.ts` (`HARD_PENALTY=15`, `SOFT_PENALTY=5`, `DEALBREAKER_FLOOR=40`, `LIFESTYLE_FLOOR=27`) — easy to adjust if you want different separation.
+
+---
+
+# Dealbreaker v3 (branch `dealbreaker-v3`)
+
+## v3 Changes (spec-driven, per FABLE_HANDOFF.md)
+
+- **4-option stances** on all 6 dealbreaker behaviors: *Will do / Fine / Annoying / Dealbreaker* (replaces the v2 3-option format).
+- **Exact §3.2 penalty matrix**: willDo×dealbreaker → **−35 (hard)**, willDo×annoying → **−17 (medium)**, fine×annoying → **−3 (mild, never surfaced in UI)**; all other cells **0**. Symmetric in both orderings; alignment never *adds* points.
+- **Algorithm order**: base score from the **12 lifestyle categories only** (dealbreakers fully excluded from the base) → subtract penalties additively, uncapped → **floor at 35**.
+- **`dealbreakerFlags` carry severity** (`hard` / `medium`); UI shows the red banner only for hard, medium lands in "Worth discussing".
+- **Migration on read** (client + server): legacy `okay` → `Fine`, `annoying`/`dealbreaker` kept, **`willDo` is never auto-assigned**; one-time `DealbreakerPrompt` modal (replacing `BehaviorPrompt`) asks users what they *do*.
+- **ALGORITHM_VERSION 2 → 3.**
+- Old v2 constants (`HARD_PENALTY=15`, `SOFT_PENALTY=5`, `DEALBREAKER_FLOOR=40`) are superseded by the §3.2 matrix and floor 35.
+
+## v3 Improvements (non-spec, this session)
+
+| # | What | Why | Before → After | Test/verification |
+|---|---|---|---|---|
+| 1 | Profile page: `run()` wrapped in try/catch ([page.tsx](app/(app)/profile/[id]/page.tsx)) | Network failure left the skeleton spinning forever | infinite skeleton → "This profile isn't available." | typecheck/lint/build green |
+| 2 | Settings: save failure surfaces an inline error ([settings/page.tsx](app/(app)/settings/page.tsx)) | A failed write silently un-stuck the button | silent failure → red `role="alert"` line above Save | typecheck/lint/build green |
+| 3 | `useConnectionWith` picks the **latest** connection by `createdAt` ([useConnections.ts](hooks/useConnections.ts)) | After "Send again" two docs exist (declined + pending); Firestore's first-match order is unspecified, so the stale one could render | non-deterministic → newest doc always wins | typecheck/lint/build green |
+| 4 | Reduced-motion: `MotionConfig reducedMotion="user"` | Respect the OS accessibility setting | already present in [providers.tsx](app/providers.tsx) — verified, no change needed | — |
+| 5 | Chat message list has `aria-live="polite"` ([connections/[uid]/page.tsx](app/(app)/connections/[uid]/page.tsx)) | Incoming messages were invisible to screen readers | silent → announced politely | typecheck/lint/build green |
+| P2 | Missing-compatibility explanation: `/api/match`'s reason ("This user hasn't finished their questionnaire yet.") now reaches the UI; the API also sends it when the target questionnaire doc is missing (same semantics) | The client discarded the reason and silently omitted the whole compatibility section | blank section → one neutral card line | typecheck/lint/build green |
+| P3 | Chat error copy: removed pre-launch debug text "Once the Firestore rules are live…" | Stale internal copy shipped to users | → "Check your connection and refresh the page to try again." | copy only |
+
+## Approved in a later round (now implemented)
+
+- **P1** — `outingScore` skipped-persona fix: if *either* side selected zero personas, return the neutral 60 instead of Jaccard 0 (the persona step is skippable; absence of data is not a maximal mismatch). Tests: empty×nonempty = 60 both orderings, empty×empty = 60, non-empty pairs unchanged (Jaccard 33/100/0). The 5 explain pairs are unaffected — their outing=0 cases are disjoint *non-empty* sets.
+- **P5** — Dealbreakers step subtitle updated for the 4-option format: "Be honest about what you'll do — and what you can't live with." (option labels unchanged per spec).
+
+## Proposed but not approved (on record)
+
+- **P4** — Security-rules gaps (sender can accept own request; `/meta/{id}` writable by any signed-in user; group joins only enforced client-side). Rules file untouched per guardrails.
+
+## Noted for later (deferred)
+
+- Chat data layer scaling: per-chat subscriptions fetch *all* the user's messages and filter client-side; needs conversation ids + indexed/limited queries.
+- `useMatches` force-refreshes on every mount, defeating the 3-min TTL.
+- `recharts` is heavy for one radar chart; hand-rolled SVG would cut bundle size.
+- `BASE_WEIGHTS` / insight band thresholds (78/50/30): leave until real-user data exists.
+- Partial-questionnaire scoring with an "incomplete" badge (product feature).
+- Decline isn't sticky (sender can immediately "Send again") — product decision.
+- Inbox badge is mount-time polling; could be realtime `onSnapshot`.
+
+## v3 explain pairs — before/after
+
+| Pair | v2 overall | v3 overall | What changed |
+|---|---|---|---|
+| Early Bird ↔ near-clone | 99% | **99%** | unchanged; no stances involved |
+| Early Bird ↔ Night Owl Gamer | 40% | **35%** (floored) | flags now severity-tagged: Loud music (hard), Late sleeping (medium), Messy room (hard); medium lands in "Worth discussing" with directional copy |
+| Chill ↔ Studious Introvert | 78% | **75%** | base is now 12-categories-only (dealbreaker alignment no longer pads the base) |
+| Social Butterfly ↔ Studious Introvert | 40% | **35%** (floored) | Frequent guests (hard) + Loud music (medium); −35 −17 from base 86… → floor |
+| Chill ↔ Substance/Late Nighter | 71% | **71%** | still correct: no stance conflict fires, only lifestyle differences |
+
+### v3 explain output (verbatim)
+
+```
+──────── Early Bird ↔ near-clone → 99%  (hardDealbreaker=false)
+  flags: —
+
+──────── Early Bird ↔ Night Owl Gamer → 35%  (hardDealbreaker=true)
+  flags: Loud music (hard), Late sleeping (medium), Messy room (hard)
+  ✗ potential clash: Loud music — they'll play audio out loud, and you can't live with that. | Messy room — they'll leave clutter around, and you can't live with that. | …
+  ? worth discussing: …friction line… | Late sleeping — they're up well past midnight, and you'd find it annoying. | …
+
+──────── Chill Middle-Ground ↔ Studious Introvert → 75%  (hardDealbreaker=false)
+  ✓ why you match : similar sleep | travel similarly | similar temperature | noise lines up
+  ? worth discussing: lighting | social energy | study focus
+
+──────── Social Butterfly ↔ Studious Introvert → 35%  (hardDealbreaker=true)
+  flags: Loud music (medium), Frequent guests (hard)
+  ✗ potential clash: Frequent guests — you have friends over often, and they can't live with that. | …
+  ? worth discussing: Loud music — you play audio out loud, and they'd find it annoying. | …
+
+──────── Chill Middle-Ground ↔ Substance/Late Nighter → 71%  (hardDealbreaker=false)
+  flags: —
+  ✓ why you match : social energy aligned | noise lines up | bathroom complements | similar temperature
+```
+
+Full verbatim output (with per-category scores): `npx vitest run __tests__/matching.spec.ts --reporter=verbose`.

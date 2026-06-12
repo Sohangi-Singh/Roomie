@@ -7,8 +7,10 @@ export type Freq = "never" | "rarely" | "sometimes" | "often" | "always";
 /** Sharing willingness. */
 export type Tri = "no" | "maybe" | "yes";
 
-/** Dealbreaker stance for a given habit. */
-export type Stance = "okay" | "annoying" | "dealbreaker";
+/** Dealbreaker stance for a given habit (v3 — 4 options).
+ *  "willDo" ("Will do in room") is the single source of truth for whether the
+ *  person does the thing; nothing is derived from lifestyle answers anymore. */
+export type Stance = "willDo" | "fine" | "annoying" | "dealbreaker";
 
 /** Compatibility categories — also the axes of the radar chart. */
 export type Category =
@@ -74,6 +76,12 @@ export interface Questionnaire {
 
   importance: Record<Category, Importance>;
   dealbreakers: Record<DealbreakerKey, Stance>;
+
+  /** Format version of the `dealbreakers` answers. Absent or < 3 means the
+   *  doc still holds legacy 3-option answers (mapped okay→fine on read); the
+   *  one-time migration modal collects fresh 4-option answers and stamps 3.
+   *  "willDo" is never auto-assigned by migration. */
+  dealbreakersVersion?: number;
 
   completedAt: number;
 }

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { TriangleAlert } from "lucide-react";
+import { CircleAlert, TriangleAlert } from "lucide-react";
 import { Avatar, Card, ProgressRing } from "@/components/ui";
 import { formatHostelPrefs, formatRoomTypePrefs } from "@/config/hostels";
 import type { RankedMatch } from "@/hooks/useMatches";
@@ -31,9 +31,26 @@ export function MatchCard({
               {formatHostelPrefs(user.hostelPrefs)} ·{" "}
               {formatRoomTypePrefs(user.roomTypePrefs)}
             </p>
-            {result.dealbreaker && (
-              <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger">
-                <TriangleAlert className="size-3" /> Dealbreaker
+            {result.dealbreakerFlags.length > 0 && (
+              <span className="mt-1.5 flex flex-wrap gap-1">
+                {/* Hard = red dealbreaker, medium = orange caution (§3.6). */}
+                {result.dealbreakerFlags.map((f) => (
+                  <span
+                    key={f.category}
+                    className={
+                      f.severity === "hard"
+                        ? "inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-danger"
+                        : "inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning"
+                    }
+                  >
+                    {f.severity === "hard" ? (
+                      <TriangleAlert className="size-3" />
+                    ) : (
+                      <CircleAlert className="size-3" />
+                    )}{" "}
+                    {f.label}
+                  </span>
+                ))}
               </span>
             )}
           </div>

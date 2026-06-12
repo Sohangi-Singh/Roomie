@@ -3,6 +3,7 @@ import type {
   DealbreakerKey,
   Freq,
   Questionnaire,
+  Stance,
   Tri,
 } from "@/types";
 import { freqToIndex } from "@/config/questionnaire";
@@ -123,12 +124,14 @@ export function temperatureScore(a: Questionnaire, b: Questionnaire): number {
 
 export function bathroomScore(a: Questionnaire, b: Questionnaire): number {
   const t = { morning: 0, evening: 1, night: 2 } as const;
-  // Bathroom timing is a shared-resource conflict — **different** timing is
-  // better (less contention). So invert the timing similarity.
-  const timingDiff =
-    100 - simLinear(t[a.bathroom.timing], t[b.bathroom.timing], 2);
+  // Different bathroom timing avoids contention (a mild bonus), but identical
+  // timing is NOT a problem — roommates coordinate. So the timing component
+  // ranges high: same = 85, adjacent = 92.5, opposite = 100 (Fix 5). The old
+  // 0→100 range tanked identical timing and capped near-clones at ~60.
+  const timingDistance = Math.abs(t[a.bathroom.timing] - t[b.bathroom.timing]);
+  const timing = 85 + 7.5 * timingDistance;
   return Math.round(
-    0.4 * timingDiff +
+    0.4 * timing +
       0.2 * simLinear(a.bathroom.durationMin, b.bathroom.durationMin, 40) +
       0.4 * simLevel(a.bathroom.hygieneWeight, b.bathroom.hygieneWeight),
   );
@@ -153,10 +156,12 @@ export function spendingScore(a: Questionnaire, b: Questionnaire): number {
 export function outingScore(a: Questionnaire, b: Questionnaire): number {
   const A = new Set(a.outingPersona);
   const B = new Set(b.outingPersona);
-  if (A.size === 0 && B.size === 0) return 60;
+  // The persona step is skippable — no data on either side is neutral,
+  // not a maximal mismatch.
+  if (A.size === 0 || B.size === 0) return 60;
   const intersection = [...A].filter((x) => B.has(x)).length;
   const union = new Set([...A, ...B]).size;
-  return Math.round(union === 0 ? 60 : (intersection / union) * 100);
+  return Math.round((intersection / union) * 100);
 }
 
 export function travelScore(a: Questionnaire, b: Questionnaire): number {
@@ -215,49 +220,63 @@ const DEALBREAKER_KEYS: DealbreakerKey[] = [
   "frequentGuests",
 ];
 
-/** Does this person exhibit the habit behind a dealbreaker key? */
-export function exhibits(q: Questionnaire, key: DealbreakerKey): boolean {
-  switch (key) {
-    case "lateSleeping":
-      return q.sleep.sleepTime < 330; // midnight–5:30am
-    case "messyRoom":
-      return q.cleanliness.room <= 2;
-    case "loudMusic":
-      return (
-        freqToIndex(q.noise.reelsMusic) >= 3 || freqToIndex(q.noise.gaming) >= 3
-      );
-    case "frequentGuests":
-      return freqToIndex(q.social.guests) >= 3;
-    // No behaviour question for these — being "okay" with it is the proxy.
-    case "substances":
-      return q.dealbreakers.substances === "okay";
-    case "nonveg":
-      return q.dealbreakers.nonveg === "okay";
-  }
-}
+/* v3 penalty matrix (FABLE_HANDOFF §3.2) — symmetric, only three non-zero
+ * pairings. "Will do" is the sole signal that a person does the thing; nothing
+ * is derived from lifestyle answers anymore (no double-counting). */
+export const HARD_PENALTY = 35;
+export const MEDIUM_PENALTY = 17;
+export const MILD_PENALTY = 3;
+
+export type DealbreakerSeverity = "hard" | "medium" | "mild";
 
 export interface DealbreakerConflict {
-  key: DealbreakerKey;
-  severity: "hard" | "soft";
+  category: DealbreakerKey;
+  /** Points to subtract from the base (positive number). */
+  penalty: number;
+  severity: DealbreakerSeverity;
+  /** Which side does the thing — drives directional copy ("they will" vs
+   *  "you will"). Only meaningful for hard/medium; mild has no doer. */
+  doer: "a" | "b";
 }
 
-/** Conflicts where one person's habit collides with the other's stance. */
+/** One cell of the symmetric matrix. Same-option pairs (incl. both-willDo)
+ *  and every remaining combination are 0 — alignment is never a bonus. */
+function evaluateCell(
+  aStance: Stance,
+  bStance: Stance,
+): Omit<DealbreakerConflict, "category"> | null {
+  if (aStance === "willDo" || bStance === "willDo") {
+    const doer = aStance === "willDo" ? "a" : "b";
+    const other = aStance === "willDo" ? bStance : aStance;
+    if (other === "dealbreaker")
+      return { penalty: HARD_PENALTY, severity: "hard", doer };
+    if (other === "annoying")
+      return { penalty: MEDIUM_PENALTY, severity: "medium", doer };
+    return null; // willDo × willDo / fine → 0
+  }
+  if (
+    (aStance === "fine" && bStance === "annoying") ||
+    (aStance === "annoying" && bStance === "fine")
+  ) {
+    return {
+      penalty: MILD_PENALTY,
+      severity: "mild",
+      doer: aStance === "fine" ? "a" : "b",
+    };
+  }
+  return null; // fine × dealbreaker, annoying × dealbreaker, all diagonals → 0
+}
+
+/** Evaluate the penalty matrix for every dealbreaker category (≤ 1 conflict
+ *  per category). Symmetric: swapping a/b flips `doer` but nothing else. */
 export function dealbreakerConflicts(
   a: Questionnaire,
   b: Questionnaire,
 ): DealbreakerConflict[] {
   const out: DealbreakerConflict[] = [];
-  for (const key of DEALBREAKER_KEYS) {
-    const bExhibits = exhibits(b, key);
-    const aExhibits = exhibits(a, key);
-    const aStance = a.dealbreakers[key];
-    const bStance = b.dealbreakers[key];
-    let severity: "hard" | "soft" | null = null;
-    if (bExhibits && aStance === "dealbreaker") severity = "hard";
-    else if (aExhibits && bStance === "dealbreaker") severity = "hard";
-    else if (bExhibits && aStance === "annoying") severity = "soft";
-    else if (aExhibits && bStance === "annoying") severity = "soft";
-    if (severity) out.push({ key, severity });
+  for (const category of DEALBREAKER_KEYS) {
+    const cell = evaluateCell(a.dealbreakers[category], b.dealbreakers[category]);
+    if (cell) out.push({ category, ...cell });
   }
   return out;
 }

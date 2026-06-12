@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, Settings, Pencil } from "lucide-react";
+import { ArrowLeft, Settings, Pencil, TriangleAlert } from "lucide-react";
 import { useCurrentUser, useQuestionnaire } from "@/hooks/useAuth";
 import { getUser } from "@/lib/firebase/db";
 import { fetchMatch } from "@/lib/api/matches";
@@ -51,6 +51,7 @@ export default function ProfilePage() {
 
   const [user, setUser] = useState<User | null>(null);
   const [match, setMatch] = useState<MatchResult | null>(null);
+  const [matchReason, setMatchReason] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -63,21 +64,28 @@ export default function ProfilePage() {
       if (isSelf) {
         setUser(me);
         setMatch(null);
+        setMatchReason(null);
         setLoading(false);
         return;
       }
-      const [u, res] = await Promise.all([
-        getUser(targetUid),
-        fetchMatch(targetUid),
-      ]);
-      if (!active) return;
-      if (!u) {
+      try {
+        const [u, res] = await Promise.all([
+          getUser(targetUid),
+          fetchMatch(targetUid),
+        ]);
+        if (!active) return;
+        if (!u) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
+        setUser(u);
+        setMatch(res.result);
+        setMatchReason(res.reason);
+      } catch {
+        if (!active) return;
         setNotFound(true);
-        setLoading(false);
-        return;
       }
-      setUser(u);
-      setMatch(res);
       setLoading(false);
     }
     void run();
@@ -136,6 +144,12 @@ export default function ProfilePage() {
         )}
       </div>
 
+      {!isSelf && !match && matchReason && (
+        <Card className="mt-6">
+          <p className="text-center text-sm text-muted">{matchReason}</p>
+        </Card>
+      )}
+
       {match && (
         <>
           <Card className="mt-6 flex flex-col items-center">
@@ -149,6 +163,26 @@ export default function ProfilePage() {
               {verdict(match.overall)}
             </p>
           </Card>
+
+          {(() => {
+            // Hard conflicts get the red banner; medium ones are covered in
+            // the "Worth discussing" insights below (§3.6). Mild never shows.
+            const hardFlags = match.dealbreakerFlags.filter(
+              (f) => f.severity === "hard",
+            );
+            if (hardFlags.length === 0) return null;
+            return (
+              <div className="mt-4 flex items-start gap-2 rounded-2xl bg-danger-soft px-4 py-3 text-sm text-danger">
+                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                <p>
+                  <span className="font-semibold">
+                    Dealbreaker{hardFlags.length > 1 ? "s" : ""}:
+                  </span>{" "}
+                  {hardFlags.map((f) => f.label).join(", ")}
+                </p>
+              </div>
+            );
+          })()}
 
           <Card className="mt-4">
             <h2 className="mb-1 font-display text-lg font-semibold">
@@ -167,6 +201,7 @@ export default function ProfilePage() {
           <Card className="mt-4">
             <InsightList
               reasons={match.reasons}
+              worthDiscussing={match.worthDiscussing}
               annoyances={match.annoyances}
               conflicts={match.conflicts}
             />

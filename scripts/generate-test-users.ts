@@ -75,8 +75,10 @@ export function earlyBirdNeatFreak(uid = "early-bird"): Questionnaire {
   q.travel = { maxKm: 10, style: "planned" };
   q.sharing = { food: "no", clothes: "no", cosmetics: "no" };
   q.importance = { ...q.importance, cleanliness: 2, noise: 2, sleep: 1 };
+  // Does none of the six herself; can't live with substances/mess/loud music.
   q.dealbreakers = {
     ...q.dealbreakers,
+    substances: "dealbreaker",
     messyRoom: "dealbreaker",
     loudMusic: "dealbreaker",
     lateSleeping: "annoying",
@@ -100,6 +102,16 @@ export function nightOwlGamer(uid = "night-owl"): Questionnaire {
   q.travel = { maxKm: 40, style: "spontaneous" };
   q.sharing = { food: "yes", clothes: "yes", cosmetics: "maybe" };
   q.importance = { ...q.importance, noise: 1, social: 1 };
+  // v3: "Will do" is explicit — she games loud, sleeps 3am, leaves mess,
+  // has friends over, eats non-veg; no substances.
+  q.dealbreakers = {
+    ...q.dealbreakers,
+    nonveg: "willDo",
+    loudMusic: "willDo",
+    lateSleeping: "willDo",
+    messyRoom: "willDo",
+    frequentGuests: "willDo",
+  };
   return q;
 }
 
@@ -143,6 +155,15 @@ export function socialButterfly(uid = "social"): Questionnaire {
   q.travel = { maxKm: 50, style: "spontaneous" };
   q.sharing = { food: "yes", clothes: "yes", cosmetics: "yes" };
   q.importance = { ...q.importance, social: 2 };
+  // v3: hosts constantly, up past 1am, loud reels, drinks and eats non-veg.
+  q.dealbreakers = {
+    ...q.dealbreakers,
+    substances: "willDo",
+    nonveg: "willDo",
+    loudMusic: "willDo",
+    lateSleeping: "willDo",
+    frequentGuests: "willDo",
+  };
   return q;
 }
 
@@ -150,12 +171,14 @@ export function socialButterfly(uid = "social"): Questionnaire {
 export function chillMiddleGround(uid = "chill"): Questionnaire {
   const q = defaultQuestionnaire(uid);
   q.outingPersona = ["cafe", "nature", "sports"];
+  // Eats non-veg in the room sometimes; fine with everything else.
+  q.dealbreakers = { ...q.dealbreakers, nonveg: "willDo" };
   return q;
 }
 
-/** Sleeps 4am, messy, loud, "okay" with substances + non-veg (which the model
- *  treats as *exhibiting* them). Trips a dealbreaker for anyone who flags
- *  substances, non-veg, late sleeping, loud music, mess, or frequent guests. */
+/** Sleeps 4am, messy, loud — and explicitly "Will do" on all six dealbreaker
+ *  categories. Trips a hard conflict for anyone who flags substances, non-veg,
+ *  late sleeping, loud music, mess, or frequent guests. */
 export function substanceLateNighter(uid = "substance-late"): Questionnaire {
   const q = defaultQuestionnaire(uid);
   q.sleep = { sleepTime: t(4), wakeTime: t(12), naps: "often" };
@@ -170,7 +193,14 @@ export function substanceLateNighter(uid = "substance-late"): Questionnaire {
   q.outingPersona = ["nightlife", "arcade"];
   q.travel = { maxKm: 35, style: "spontaneous" };
   q.sharing = { food: "maybe", clothes: "no", cosmetics: "no" };
-  // substances + nonveg deliberately left "okay" (= "exhibits" in the model).
+  q.dealbreakers = {
+    substances: "willDo",
+    nonveg: "willDo",
+    loudMusic: "willDo",
+    lateSleeping: "willDo",
+    messyRoom: "willDo",
+    frequentGuests: "willDo",
+  };
   return q;
 }
 
@@ -206,7 +236,7 @@ const PERSONAS: Persona[] = [
   "sports",
 ];
 const TRIS: Tri[] = ["no", "maybe", "yes"];
-const STANCES: Stance[] = ["okay", "annoying", "dealbreaker"];
+const STANCES: Stance[] = ["willDo", "fine", "annoying", "dealbreaker"];
 
 /** One reproducible random (but schema-valid) questionnaire. */
 export function randomQuestionnaire(

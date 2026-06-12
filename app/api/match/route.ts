@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb, uidFromAuthHeader } from "@/lib/firebase/admin";
-import { scorePair } from "@/lib/matching";
+import { scorePair, IncompleteProfileError } from "@/lib/matching";
+import { migrateQuestionnaire } from "@/config/questionnaire";
 import type { Questionnaire } from "@/types";
 
 export const runtime = "nodejs";
@@ -20,13 +21,32 @@ export async function GET(req: NextRequest) {
     db.collection("questionnaires").doc(uid).get(),
     db.collection("questionnaires").doc(target).get(),
   ]);
-  if (!myQSnap.exists || !theirQSnap.exists) {
+  if (!theirQSnap.exists) {
+    // Same situation as IncompleteProfileError below — surface the same reason.
+    return NextResponse.json({
+      result: null,
+      error: "This user hasn't finished their questionnaire yet.",
+    });
+  }
+  if (!myQSnap.exists) {
     return NextResponse.json({ result: null });
   }
 
-  const result = scorePair(
-    myQSnap.data() as Questionnaire,
-    theirQSnap.data() as Questionnaire,
-  );
-  return NextResponse.json({ result });
+  try {
+    // v3 read-migration so pre-v3 docs (legacy 3-option stances) keep scoring.
+    const result = scorePair(
+      migrateQuestionnaire(myQSnap.data() as Questionnaire),
+      migrateQuestionnaire(theirQSnap.data() as Questionnaire),
+    );
+    return NextResponse.json({ result });
+  } catch (e) {
+    if (e instanceof IncompleteProfileError) {
+      // Fix 6: friendly message instead of a NaN/crash.
+      return NextResponse.json({
+        result: null,
+        error: "This user hasn't finished their questionnaire yet.",
+      });
+    }
+    throw e;
+  }
 }

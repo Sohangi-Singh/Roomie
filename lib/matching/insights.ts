@@ -1,4 +1,5 @@
 import type { Category, DealbreakerKey, Questionnaire } from "@/types";
+import { DEALBREAKER_META } from "@/config/questionnaire";
 import type { DealbreakerConflict } from "./scoring";
 
 const REASONS: Record<Category, string> = {
@@ -16,14 +17,68 @@ const REASONS: Record<Category, string> = {
   sharing: "You're on the same page about sharing.",
 };
 
-const DEALBREAKER_LINES: Record<DealbreakerKey, string> = {
-  substances: "Strong mismatch on intoxicating substances.",
-  nonveg: "Mismatch on non-vegetarian food in the room.",
-  loudMusic: "One often plays loud music the other can't stand.",
-  lateSleeping: "A late-night schedule clashes with an early sleeper.",
-  messyRoom: "A tidiness gap is flagged as a dealbreaker.",
-  frequentGuests: "Frequent guests are flagged as a dealbreaker.",
+// Fix 2: neutral, constructive copy for the 50–77 "Worth discussing" band.
+const WORTH_DISCUSSING: Record<Category, string> = {
+  sleep: "Sleep timings differ a little — worth agreeing on quiet hours.",
+  cleanliness: "Slightly different tidiness levels — set a shared baseline early.",
+  noise: "Some difference in noise comfort — headphones go a long way.",
+  study: "You focus a bit differently — easy to plan around.",
+  lighting: "Minor lighting differences — sort out a late-night lamp.",
+  temperature: "Fan preferences differ a touch — usually easy to settle.",
+  bathroom: "Bathroom routines are fairly close — a quick schedule helps.",
+  social: "Somewhat different social energy — align on guests and quiet time.",
+  spending: "Budgets differ a little — agree on shared costs up front.",
+  outing: "Partly overlapping outing tastes — still plenty to do together.",
+  travel: "Slightly different travel appetites — easy to compromise.",
+  sharing: "Mostly aligned on sharing — just confirm the specifics.",
 };
+
+const DEALBREAKER_LABEL = Object.fromEntries(
+  DEALBREAKER_META.map((d) => [d.key, d.label]),
+) as Record<DealbreakerKey, string>;
+
+/** What the doer actually does, phrased from each side's point of view. */
+const DEALBREAKER_DOES: Record<DealbreakerKey, { they: string; you: string }> = {
+  substances: {
+    they: "they'll smoke or drink in the room",
+    you: "you smoke or drink in the room",
+  },
+  nonveg: {
+    they: "they'll eat non-veg in the room",
+    you: "you eat non-veg in the room",
+  },
+  loudMusic: {
+    they: "they'll play audio out loud",
+    you: "you play audio out loud",
+  },
+  lateSleeping: {
+    they: "they're up well past midnight",
+    you: "you're up well past midnight",
+  },
+  messyRoom: {
+    they: "they'll leave clutter around",
+    you: "you leave clutter around",
+  },
+  frequentGuests: {
+    they: "they'll have friends over often",
+    you: "you have friends over often",
+  },
+};
+
+/** Plain-language line for a hard/medium dealbreaker conflict (§3.6).
+ *  `a` is always the viewer ("you"); `doer` says which side does the thing. */
+function dealbreakerLine(c: DealbreakerConflict): string {
+  const label = DEALBREAKER_LABEL[c.category];
+  const does = DEALBREAKER_DOES[c.category];
+  if (c.severity === "hard") {
+    return c.doer === "b"
+      ? `${label} — ${does.they}, and you can't live with that.`
+      : `${label} — ${does.you}, and they can't live with that.`;
+  }
+  return c.doer === "b"
+    ? `${label} — ${does.they}, and you'd find it annoying.`
+    : `${label} — ${does.you}, and they'd find it annoying.`;
+}
 
 /** Tailored conflict copy where we can be specific, generic otherwise. */
 function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
@@ -58,10 +113,13 @@ function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
 }
 
 export interface Insights {
+  /** Positive compatibility — "Why you match" (green). */
   reasons: string[];
-  /** Soft concerns — annoyance-level dealbreakers + medium-low categories. */
+  /** MEDIUM dealbreaker conflicts + mild notes (50–77 band) — "Worth discussing". */
+  worthDiscussing: string[];
+  /** Soft concerns — 30–49 categories. */
   annoyances: string[];
-  /** Hard dealbreaker conflicts + severe category mismatches only. */
+  /** HARD dealbreaker conflicts + severe (<30) category mismatches. */
   conflicts: string[];
 }
 
@@ -70,27 +128,25 @@ export function buildInsights(
   b: Questionnaire,
   categories: Record<Category, number>,
   dbConflicts: DealbreakerConflict[],
+  overall: number,
 ): Insights {
   const reasons: string[] = [];
+  const worthDiscussing: string[] = [];
   const annoyances: string[] = [];
   const conflicts: string[] = [];
 
-  // Dealbreaker conflicts: hard → "Potential clashes",
-  //                       soft (annoying) → "Might be a problem, but is fine".
-  const seenConflict = new Set<string>();
-  const seenAnnoyance = new Set<string>();
+  // Dealbreaker conflicts (§3.6): HARD → "Potential clashes" (red),
+  // MEDIUM → "Worth discussing" (orange), MILD → nothing — it silently
+  // nudges the score and never surfaces in any UI (§3.4c).
+  let hardCount = 0;
   for (const c of dbConflicts) {
-    const line = DEALBREAKER_LINES[c.key];
+    if (c.severity === "mild") continue;
+    const line = dealbreakerLine(c);
     if (c.severity === "hard") {
-      if (!seenConflict.has(line)) {
-        conflicts.push(line);
-        seenConflict.add(line);
-      }
+      hardCount++;
+      conflicts.push(line);
     } else {
-      if (!seenAnnoyance.has(line)) {
-        annoyances.push(line);
-        seenAnnoyance.add(line);
-      }
+      worthDiscussing.push(line);
     }
   }
 
@@ -98,19 +154,16 @@ export function buildInsights(
     c,
     score: categories[c],
   }));
-  const high = entries
-    .filter((e) => e.score >= 78)
-    .sort((x, y) => y.score - x.score);
+  const high = entries.filter((e) => e.score >= 78).sort((x, y) => y.score - x.score);
+  // 50–77 = pretty good, minor difference → neutral "worth discussing"
+  const mid = entries.filter((e) => e.score >= 50 && e.score < 78).sort((x, y) => x.score - y.score);
   // 30–49 = bothersome but liveable
-  const moderate = entries
-    .filter((e) => e.score >= 30 && e.score < 50)
-    .sort((x, y) => x.score - y.score);
+  const moderate = entries.filter((e) => e.score >= 30 && e.score < 50).sort((x, y) => x.score - y.score);
   // < 30 = severe enough to surface as a potential clash
-  const severe = entries
-    .filter((e) => e.score < 30)
-    .sort((x, y) => x.score - y.score);
+  const severe = entries.filter((e) => e.score < 30).sort((x, y) => x.score - y.score);
 
   for (const e of high.slice(0, 4)) reasons.push(REASONS[e.c]);
+  for (const e of mid.slice(0, 3)) worthDiscussing.push(WORTH_DISCUSSING[e.c]);
   for (const e of moderate.slice(0, 3)) {
     const line = conflictLine(e.c, a, b);
     if (!annoyances.includes(line) && !conflicts.includes(line)) {
@@ -122,8 +175,17 @@ export function buildInsights(
     if (!conflicts.includes(line)) conflicts.push(line);
   }
 
+  // Fix 2: never falsely reassure. The reassuring fallback only appears on a
+  // genuinely balanced match; otherwise show an honest, neutral line instead.
   if (reasons.length === 0) {
-    reasons.push("You have a balanced, workable mix of habits.");
+    if (overall < 60 || hardCount > 0 || severe.length > 0) {
+      worthDiscussing.unshift(
+        "This match has notable friction points — review the clashes below before deciding.",
+      );
+    } else {
+      reasons.push("You have a balanced, workable mix of habits.");
+    }
   }
-  return { reasons, annoyances, conflicts };
+
+  return { reasons, worthDiscussing, annoyances, conflicts };
 }

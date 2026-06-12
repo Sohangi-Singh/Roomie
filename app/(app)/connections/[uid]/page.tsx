@@ -144,7 +144,7 @@ export default function ChatPage() {
       </header>
 
       {/* messages */}
-      <div className="flex-1 space-y-2 overflow-y-auto py-4">
+      <div className="flex-1 space-y-2 overflow-y-auto py-4" aria-live="polite">
         {msgsLoading && !chatError && (
           <p className="py-6 text-center text-xs text-faint">Loading…</p>
         )}
@@ -152,8 +152,7 @@ export default function ChatPage() {
           <div className="mx-auto mt-6 max-w-sm rounded-2xl bg-danger-soft px-4 py-3 text-center">
             <p className="text-sm font-medium text-danger">{chatError}</p>
             <p className="mt-1 text-xs text-muted">
-              Once the Firestore rules are live, refresh this page and the chat
-              will work.
+              Check your connection and refresh the page to try again.
             </p>
           </div>
         )}
