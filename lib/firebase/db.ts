@@ -238,10 +238,37 @@ export async function getLastMessagesByPeer(
   return byPeer;
 }
 
-/** All messages addressed to `uid`. Used by the DMs badge to count unread. */
-export async function getMessagesTo(uid: string): Promise<Message[]> {
-  const snap = await getDocs(query(msgCol, where("to", "==", uid)));
-  return snap.docs.map((d) => d.data());
+/** Live feed of every message involving `uid`, plus all their connections —
+ *  used by the DMs badge. Both query by `participants array-contains` because
+ *  the security rules only admit that shape (a `to ==` filter can't prove the
+ *  caller is a participant, so Firestore rejects it). Returns unsubscribe. */
+export function subscribeToInbox(
+  uid: string,
+  cb: (data: { connections: Connection[]; messages: Message[] }) => void,
+  onError?: (err: Error) => void,
+): () => void {
+  let connections: Connection[] = [];
+  let messages: Message[] = [];
+  const u1 = onSnapshot(
+    query(connCol, where("participants", "array-contains", uid)),
+    (snap) => {
+      connections = snap.docs.map((d) => d.data());
+      cb({ connections, messages });
+    },
+    onError,
+  );
+  const u2 = onSnapshot(
+    query(msgCol, where("participants", "array-contains", uid)),
+    (snap) => {
+      messages = snap.docs.map((d) => d.data());
+      cb({ connections, messages });
+    },
+    onError,
+  );
+  return () => {
+    u1();
+    u2();
+  };
 }
 
 /* ---------------------------- matches version --------------------------- */

@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { getConnectionsFor, getMessagesTo } from "@/lib/firebase/db";
+import { subscribeToInbox } from "@/lib/firebase/db";
+import type { Connection, Message } from "@/types";
 
 const KEY = "roomie-inbox-seen";
 const CHAT_KEY = (peerUid: string) => `roomie-chat-seen-${peerUid}`;
@@ -60,51 +61,45 @@ export function markChatSeen(peerUid: string): void {
 export function useInboxBadge(): number {
   const uid = useAuthStore((s) => s.fbUser?.uid ?? null);
   const [count, setCount] = useState(0);
-
-  const recompute = useCallback(
-    async (signal: { cancelled: boolean }) => {
-      if (!uid) {
-        if (!signal.cancelled) setCount(0);
-        return;
-      }
-      try {
-        const [conns, msgs] = await Promise.all([
-          getConnectionsFor(uid),
-          getMessagesTo(uid),
-        ]);
-        const lastInbox = loadLastSeen();
-        const unseenRequests = conns.filter(
-          (c) =>
-            c.status === "pending" && c.to === uid && c.createdAt > lastInbox,
-        ).length;
-        const unseenMessages = msgs.filter(
-          (m) => m.createdAt > loadChatLastSeen(m.from),
-        ).length;
-        if (!signal.cancelled) setCount(unseenRequests + unseenMessages);
-      } catch {
-        if (!signal.cancelled) setCount(0);
-      }
-    },
-    [uid],
-  );
+  // Latest snapshot data, so a "seen" event can recount without refetching.
+  const dataRef = useRef<{ connections: Connection[]; messages: Message[] }>({
+    connections: [],
+    messages: [],
+  });
 
   useEffect(() => {
-    const signal = { cancelled: false };
-    void Promise.resolve().then(() => recompute(signal));
-
-    const onSeen = () => {
-      void recompute(signal);
-    };
-    if (typeof window !== "undefined") {
-      window.addEventListener(SEEN_EVENT, onSeen);
+    if (!uid) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- reset on sign-out
+      setCount(0);
+      return;
     }
-    return () => {
-      signal.cancelled = true;
-      if (typeof window !== "undefined") {
-        window.removeEventListener(SEEN_EVENT, onSeen);
-      }
+    const recount = () => {
+      const { connections, messages } = dataRef.current;
+      const lastInbox = loadLastSeen();
+      const unseenRequests = connections.filter(
+        (c) =>
+          c.status === "pending" && c.to === uid && c.createdAt > lastInbox,
+      ).length;
+      const unseenMessages = messages.filter(
+        (m) => m.to === uid && m.createdAt > loadChatLastSeen(m.from),
+      ).length;
+      setCount(unseenRequests + unseenMessages);
     };
-  }, [recompute]);
+
+    const unsubscribe = subscribeToInbox(
+      uid,
+      (data) => {
+        dataRef.current = data;
+        recount();
+      },
+      () => setCount(0),
+    );
+    window.addEventListener(SEEN_EVENT, recount);
+    return () => {
+      unsubscribe();
+      window.removeEventListener(SEEN_EVENT, recount);
+    };
+  }, [uid]);
 
   return count;
 }
