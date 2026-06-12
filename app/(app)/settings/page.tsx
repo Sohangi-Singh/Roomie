@@ -49,6 +49,7 @@ export default function SettingsPage() {
   }));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   if (!me) return null;
 
@@ -97,6 +98,7 @@ export default function SettingsPage() {
   const save = async () => {
     if (!valid) return;
     setSaving(true);
+    setSaveError(null);
     try {
       const patch: Partial<User> = {
         fullName: form.fullName.trim(),
@@ -121,6 +123,8 @@ export default function SettingsPage() {
       await updateQuestionnaireProfile(me.uid, snapshot);
       setAuth({ user: { ...me, ...patch, updatedAt: Date.now() } });
       setSaved(true);
+    } catch {
+      setSaveError("Couldn't save your changes. Check your connection and try again.");
     } finally {
       setSaving(false);
     }
@@ -252,6 +256,11 @@ export default function SettingsPage() {
       </Card>
 
       <div className="mt-4">
+        {saveError && (
+          <p className="mb-2 text-center text-xs text-danger" role="alert">
+            {saveError}
+          </p>
+        )}
         <Button fullWidth size="lg" onClick={save} loading={saving} disabled={!valid}>
           {saved ? (
             <>

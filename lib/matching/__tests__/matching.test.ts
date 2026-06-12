@@ -10,7 +10,6 @@ import {
   noiseScore,
   bathroomScore,
   dealbreakerConflicts,
-  exhibits,
 } from "@/lib/matching/scoring";
 
 const clone = (q: Questionnaire): Questionnaire =>
@@ -125,55 +124,56 @@ describe("scorePair", () => {
     }
   });
 
-  it("a hard dealbreaker subtracts a fixed −15 penalty and flags it (v2: penalty, not a 22% crater)", () => {
+  it("a hard dealbreaker (Will do × Dealbreaker) subtracts −35 and flags it", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
     const before = scorePair(a, b).overall;
 
     a.dealbreakers.substances = "dealbreaker";
-    b.behavior = { substances: "regularly", nonveg: null }; // b actually uses substances
+    b.dealbreakers.substances = "willDo"; // b explicitly does it
     const res = scorePair(a, b);
 
     expect(before).toBeGreaterThanOrEqual(88);
     expect(res.dealbreaker).toBe(true);
-    // Fixed −15 penalty, well above the 40 floor — no longer cratered to 22.
-    expect(res.overall).toBe(before - 15);
-    expect(res.dealbreakerFlags).toContain("Intoxicating substances");
-    expect(res.conflicts.some((c) => /substances/i.test(c))).toBe(true);
+    expect(res.overall).toBe(before - 35);
+    expect(res.dealbreakerFlags).toEqual([
+      { category: "substances", label: "Intoxicating substances", severity: "hard" },
+    ]);
+    expect(res.conflicts.some((c) => /smoke or drink/i.test(c))).toBe(true);
   });
 
-  it("annoyance-level dealbreakers go to annoyances, not conflicts", () => {
+  it("a medium conflict (Will do × Annoying) subtracts −17, flags orange, lands in worthDiscussing", () => {
     const a = defaultQuestionnaire("a");
     const b = defaultQuestionnaire("b");
+    const before = scorePair(a, b).overall;
     a.dealbreakers.loudMusic = "annoying";
-    b.noise.reelsMusic = "always"; // b exhibits loud music
+    b.dealbreakers.loudMusic = "willDo";
     const res = scorePair(a, b);
     expect(res.dealbreaker).toBe(false);
-    expect(res.annoyances.some((s) => /music/i.test(s))).toBe(true);
-    expect(res.conflicts.some((s) => /music/i.test(s))).toBe(false);
+    expect(res.overall).toBe(before - 17);
+    expect(res.dealbreakerFlags).toEqual([
+      { category: "loudMusic", label: "Loud music", severity: "medium" },
+    ]);
+    expect(res.worthDiscussing.some((s) => /loud/i.test(s))).toBe(true);
+    expect(res.conflicts.some((s) => /loud/i.test(s))).toBe(false);
   });
 
-  it("detects exhibited habits used for dealbreakers", () => {
-    const messy = defaultQuestionnaire("m");
-    messy.cleanliness.room = 1;
-    expect(exhibits(messy, "messyRoom")).toBe(true);
+  it("the matrix reads ONLY stances — lifestyle answers no longer trigger dealbreakers", () => {
+    const earlyTidy = defaultQuestionnaire("x");
+    earlyTidy.dealbreakers.lateSleeping = "dealbreaker";
 
+    // A 2am sleeper who did NOT declare "Will do" raises no conflict…
     const nightOwl = defaultQuestionnaire("n");
     nightOwl.sleep.sleepTime = 120; // 2am
-    expect(exhibits(nightOwl, "lateSleeping")).toBe(true);
+    expect(dealbreakerConflicts(earlyTidy, nightOwl)).toHaveLength(0);
 
-    const conflicts = dealbreakerConflicts(
-      Object.assign(defaultQuestionnaire("x"), {
-        dealbreakers: {
-          ...defaultQuestionnaire("x").dealbreakers,
-          lateSleeping: "dealbreaker",
-        },
-      }),
-      nightOwl,
-    );
-    expect(
-      conflicts.some((c) => c.key === "lateSleeping" && c.severity === "hard"),
-    ).toBe(true);
+    // …while an explicit "Will do" raises a hard one regardless of sliders.
+    const declared = defaultQuestionnaire("d");
+    declared.dealbreakers.lateSleeping = "willDo";
+    const conflicts = dealbreakerConflicts(earlyTidy, declared);
+    expect(conflicts).toEqual([
+      { category: "lateSleeping", penalty: 35, severity: "hard", doer: "b" },
+    ]);
   });
 });
 

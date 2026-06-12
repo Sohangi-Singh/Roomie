@@ -56,7 +56,12 @@ export function useConnectionWith(targetUid: string | null) {
     setLoading(true);
     try {
       const all = await getConnectionsFor(me.uid);
-      setConn(all.find((c) => c.participants.includes(targetUid)) ?? null);
+      // After "Send again" two docs can exist (declined + pending); Firestore
+      // ordering is unspecified, so pick the most recent deterministically.
+      const withTarget = all
+        .filter((c) => c.participants.includes(targetUid))
+        .sort((a, b) => b.createdAt - a.createdAt);
+      setConn(withTarget[0] ?? null);
     } finally {
       setLoading(false);
     }

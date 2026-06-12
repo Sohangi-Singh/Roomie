@@ -19,14 +19,23 @@ export async function fetchMatches(): Promise<ApiMatch[]> {
   return data.matches;
 }
 
+export interface FetchMatchResult {
+  result: MatchResult | null;
+  /** Why there's no result (e.g. their questionnaire is incomplete). */
+  reason: string | null;
+}
+
 /** Pairwise compatibility result between the signed-in user and `uid`. */
-export async function fetchMatch(uid: string): Promise<MatchResult | null> {
+export async function fetchMatch(uid: string): Promise<FetchMatchResult> {
   const token = await idToken();
-  if (!token) return null;
+  if (!token) return { result: null, reason: null };
   const res = await fetch(`/api/match?uid=${encodeURIComponent(uid)}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!res.ok) return null;
-  const data = (await res.json()) as { result: MatchResult | null };
-  return data.result;
+  if (!res.ok) return { result: null, reason: null };
+  const data = (await res.json()) as {
+    result: MatchResult | null;
+    error?: string;
+  };
+  return { result: data.result, reason: data.error ?? null };
 }

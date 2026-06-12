@@ -305,3 +305,82 @@ changed any algorithm code** — these are yours to decide.
 - **Validation cost:** `scorePair` runs a Zod parse on both inputs every call, so `rankCandidates` re-parses `me` once per candidate. Fine at current scale; if cohorts grow, validate `me` once in the API route and skip re-validation in the loop.
 - **Behavior backfill is per-user, opt-in via the modal.** Until a user fills it, their substance/non-veg is `unknown` (no conflict, soft note) — intended, no data was inferred from old answers.
 - **Tuning constants** live at the top of `lib/matching/index.ts` (`HARD_PENALTY=15`, `SOFT_PENALTY=5`, `DEALBREAKER_FLOOR=40`, `LIFESTYLE_FLOOR=27`) — easy to adjust if you want different separation.
+
+---
+
+# Dealbreaker v3 (branch `dealbreaker-v3`)
+
+## v3 Changes (spec-driven, per FABLE_HANDOFF.md)
+
+- **4-option stances** on all 6 dealbreaker behaviors: *Will do / Fine / Annoying / Dealbreaker* (replaces the v2 3-option format).
+- **Exact §3.2 penalty matrix**: willDo×dealbreaker → **−35 (hard)**, willDo×annoying → **−17 (medium)**, fine×annoying → **−3 (mild, never surfaced in UI)**; all other cells **0**. Symmetric in both orderings; alignment never *adds* points.
+- **Algorithm order**: base score from the **12 lifestyle categories only** (dealbreakers fully excluded from the base) → subtract penalties additively, uncapped → **floor at 35**.
+- **`dealbreakerFlags` carry severity** (`hard` / `medium`); UI shows the red banner only for hard, medium lands in "Worth discussing".
+- **Migration on read** (client + server): legacy `okay` → `Fine`, `annoying`/`dealbreaker` kept, **`willDo` is never auto-assigned**; one-time `DealbreakerPrompt` modal (replacing `BehaviorPrompt`) asks users what they *do*.
+- **ALGORITHM_VERSION 2 → 3.**
+- Old v2 constants (`HARD_PENALTY=15`, `SOFT_PENALTY=5`, `DEALBREAKER_FLOOR=40`) are superseded by the §3.2 matrix and floor 35.
+
+## v3 Improvements (non-spec, this session)
+
+| # | What | Why | Before → After | Test/verification |
+|---|---|---|---|---|
+| 1 | Profile page: `run()` wrapped in try/catch ([page.tsx](app/(app)/profile/[id]/page.tsx)) | Network failure left the skeleton spinning forever | infinite skeleton → "This profile isn't available." | typecheck/lint/build green |
+| 2 | Settings: save failure surfaces an inline error ([settings/page.tsx](app/(app)/settings/page.tsx)) | A failed write silently un-stuck the button | silent failure → red `role="alert"` line above Save | typecheck/lint/build green |
+| 3 | `useConnectionWith` picks the **latest** connection by `createdAt` ([useConnections.ts](hooks/useConnections.ts)) | After "Send again" two docs exist (declined + pending); Firestore's first-match order is unspecified, so the stale one could render | non-deterministic → newest doc always wins | typecheck/lint/build green |
+| 4 | Reduced-motion: `MotionConfig reducedMotion="user"` | Respect the OS accessibility setting | already present in [providers.tsx](app/providers.tsx) — verified, no change needed | — |
+| 5 | Chat message list has `aria-live="polite"` ([connections/[uid]/page.tsx](app/(app)/connections/[uid]/page.tsx)) | Incoming messages were invisible to screen readers | silent → announced politely | typecheck/lint/build green |
+| P2 | Missing-compatibility explanation: `/api/match`'s reason ("This user hasn't finished their questionnaire yet.") now reaches the UI; the API also sends it when the target questionnaire doc is missing (same semantics) | The client discarded the reason and silently omitted the whole compatibility section | blank section → one neutral card line | typecheck/lint/build green |
+| P3 | Chat error copy: removed pre-launch debug text "Once the Firestore rules are live…" | Stale internal copy shipped to users | → "Check your connection and refresh the page to try again." | copy only |
+
+## Proposed but not approved this round (on record)
+
+- **P1** — `outingScore` skipped-persona fix (empty persona set scores Jaccard 0 against any non-empty set; proposed neutral 60). Visible above: outing=0 for the Substance/Late-Nighter pairs.
+- **P4** — Security-rules gaps (sender can accept own request; `/meta/{id}` writable by any signed-in user; group joins only enforced client-side). Rules file untouched per guardrails.
+- **P5** — Dealbreakers step subtitle predates the 4-option format.
+
+## Noted for later (deferred)
+
+- Chat data layer scaling: per-chat subscriptions fetch *all* the user's messages and filter client-side; needs conversation ids + indexed/limited queries.
+- `useMatches` force-refreshes on every mount, defeating the 3-min TTL.
+- `recharts` is heavy for one radar chart; hand-rolled SVG would cut bundle size.
+- `BASE_WEIGHTS` / insight band thresholds (78/50/30): leave until real-user data exists.
+- Partial-questionnaire scoring with an "incomplete" badge (product feature).
+- Decline isn't sticky (sender can immediately "Send again") — product decision.
+- Inbox badge is mount-time polling; could be realtime `onSnapshot`.
+
+## v3 explain pairs — before/after
+
+| Pair | v2 overall | v3 overall | What changed |
+|---|---|---|---|
+| Early Bird ↔ near-clone | 99% | **99%** | unchanged; no stances involved |
+| Early Bird ↔ Night Owl Gamer | 40% | **35%** (floored) | flags now severity-tagged: Loud music (hard), Late sleeping (medium), Messy room (hard); medium lands in "Worth discussing" with directional copy |
+| Chill ↔ Studious Introvert | 78% | **75%** | base is now 12-categories-only (dealbreaker alignment no longer pads the base) |
+| Social Butterfly ↔ Studious Introvert | 40% | **35%** (floored) | Frequent guests (hard) + Loud music (medium); −35 −17 from base 86… → floor |
+| Chill ↔ Substance/Late Nighter | 71% | **71%** | still correct: no stance conflict fires, only lifestyle differences |
+
+### v3 explain output (verbatim)
+
+```
+──────── Early Bird ↔ near-clone → 99%  (hardDealbreaker=false)
+  flags: —
+
+──────── Early Bird ↔ Night Owl Gamer → 35%  (hardDealbreaker=true)
+  flags: Loud music (hard), Late sleeping (medium), Messy room (hard)
+  ✗ potential clash: Loud music — they'll play audio out loud, and you can't live with that. | Messy room — they'll leave clutter around, and you can't live with that. | …
+  ? worth discussing: …friction line… | Late sleeping — they're up well past midnight, and you'd find it annoying. | …
+
+──────── Chill Middle-Ground ↔ Studious Introvert → 75%  (hardDealbreaker=false)
+  ✓ why you match : similar sleep | travel similarly | similar temperature | noise lines up
+  ? worth discussing: lighting | social energy | study focus
+
+──────── Social Butterfly ↔ Studious Introvert → 35%  (hardDealbreaker=true)
+  flags: Loud music (medium), Frequent guests (hard)
+  ✗ potential clash: Frequent guests — you have friends over often, and they can't live with that. | …
+  ? worth discussing: Loud music — you play audio out loud, and they'd find it annoying. | …
+
+──────── Chill Middle-Ground ↔ Substance/Late Nighter → 71%  (hardDealbreaker=false)
+  flags: —
+  ✓ why you match : social energy aligned | noise lines up | bathroom complements | similar temperature
+```
+
+Full verbatim output (with per-category scores): `npx vitest run __tests__/matching.spec.ts --reporter=verbose`.

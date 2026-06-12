@@ -1,5 +1,6 @@
 import type { Category, DealbreakerKey, Questionnaire } from "@/types";
-import { behaviorState, type DealbreakerConflict } from "./scoring";
+import { DEALBREAKER_META } from "@/config/questionnaire";
+import type { DealbreakerConflict } from "./scoring";
 
 const REASONS: Record<Category, string> = {
   sleep: "You're on similar sleep schedules.",
@@ -32,14 +33,52 @@ const WORTH_DISCUSSING: Record<Category, string> = {
   sharing: "Mostly aligned on sharing — just confirm the specifics.",
 };
 
-const DEALBREAKER_LINES: Record<DealbreakerKey, string> = {
-  substances: "Strong mismatch on intoxicating substances.",
-  nonveg: "Mismatch on non-vegetarian food in the room.",
-  loudMusic: "One often plays loud music the other can't stand.",
-  lateSleeping: "A late-night schedule clashes with an early sleeper.",
-  messyRoom: "A tidiness gap is flagged as a dealbreaker.",
-  frequentGuests: "Frequent guests are flagged as a dealbreaker.",
+const DEALBREAKER_LABEL = Object.fromEntries(
+  DEALBREAKER_META.map((d) => [d.key, d.label]),
+) as Record<DealbreakerKey, string>;
+
+/** What the doer actually does, phrased from each side's point of view. */
+const DEALBREAKER_DOES: Record<DealbreakerKey, { they: string; you: string }> = {
+  substances: {
+    they: "they'll smoke or drink in the room",
+    you: "you smoke or drink in the room",
+  },
+  nonveg: {
+    they: "they'll eat non-veg in the room",
+    you: "you eat non-veg in the room",
+  },
+  loudMusic: {
+    they: "they'll play audio out loud",
+    you: "you play audio out loud",
+  },
+  lateSleeping: {
+    they: "they're up well past midnight",
+    you: "you're up well past midnight",
+  },
+  messyRoom: {
+    they: "they'll leave clutter around",
+    you: "you leave clutter around",
+  },
+  frequentGuests: {
+    they: "they'll have friends over often",
+    you: "you have friends over often",
+  },
 };
+
+/** Plain-language line for a hard/medium dealbreaker conflict (§3.6).
+ *  `a` is always the viewer ("you"); `doer` says which side does the thing. */
+function dealbreakerLine(c: DealbreakerConflict): string {
+  const label = DEALBREAKER_LABEL[c.category];
+  const does = DEALBREAKER_DOES[c.category];
+  if (c.severity === "hard") {
+    return c.doer === "b"
+      ? `${label} — ${does.they}, and you can't live with that.`
+      : `${label} — ${does.you}, and they can't live with that.`;
+  }
+  return c.doer === "b"
+    ? `${label} — ${does.they}, and you'd find it annoying.`
+    : `${label} — ${does.you}, and they'd find it annoying.`;
+}
 
 /** Tailored conflict copy where we can be specific, generic otherwise. */
 function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
@@ -73,21 +112,14 @@ function conflictLine(c: Category, a: Questionnaire, b: Questionnaire): string {
   }
 }
 
-// Fix 1: shown when a person hasn't shared a behavior the other side cares about.
-function unknownBehaviorNote(key: "substances" | "nonveg"): string {
-  return key === "substances"
-    ? "They haven't shared their stance on smoking/drinking in the room yet."
-    : "They haven't shared whether they eat non-veg in the room yet.";
-}
-
 export interface Insights {
   /** Positive compatibility — "Why you match" (green). */
   reasons: string[];
-  /** Mild, neutral notes (50–77 band) + unknown-behavior — "Worth discussing". */
+  /** MEDIUM dealbreaker conflicts + mild notes (50–77 band) — "Worth discussing". */
   worthDiscussing: string[];
-  /** Soft concerns — annoyance-level dealbreakers + 30–49 categories. */
+  /** Soft concerns — 30–49 categories. */
   annoyances: string[];
-  /** Hard dealbreaker conflicts + severe (<30) category mismatches. */
+  /** HARD dealbreaker conflicts + severe (<30) category mismatches. */
   conflicts: string[];
 }
 
@@ -103,22 +135,18 @@ export function buildInsights(
   const annoyances: string[] = [];
   const conflicts: string[] = [];
 
-  // Dealbreaker conflicts: hard → "Potential clashes",
-  //                       soft (annoying) → "Might be a problem, but is fine".
-  const seenConflict = new Set<string>();
-  const seenAnnoyance = new Set<string>();
+  // Dealbreaker conflicts (§3.6): HARD → "Potential clashes" (red),
+  // MEDIUM → "Worth discussing" (orange), MILD → nothing — it silently
+  // nudges the score and never surfaces in any UI (§3.4c).
   let hardCount = 0;
   for (const c of dbConflicts) {
-    const line = DEALBREAKER_LINES[c.key];
+    if (c.severity === "mild") continue;
+    const line = dealbreakerLine(c);
     if (c.severity === "hard") {
       hardCount++;
-      if (!seenConflict.has(line)) {
-        conflicts.push(line);
-        seenConflict.add(line);
-      }
-    } else if (!seenAnnoyance.has(line)) {
-      annoyances.push(line);
-      seenAnnoyance.add(line);
+      conflicts.push(line);
+    } else {
+      worthDiscussing.push(line);
     }
   }
 
@@ -145,19 +173,6 @@ export function buildInsights(
   for (const e of severe.slice(0, 3)) {
     const line = conflictLine(e.c, a, b);
     if (!conflicts.includes(line)) conflicts.push(line);
-  }
-
-  // Fix 1: surface a neutral note when one side's substance/non-veg behavior is
-  // unknown AND the other person actually cares (flagged it as non-"okay").
-  for (const key of ["substances", "nonveg"] as const) {
-    const note = unknownBehaviorNote(key);
-    const bUnknownACares =
-      behaviorState(b, key) === "unknown" && a.dealbreakers[key] !== "okay";
-    const aUnknownBCares =
-      behaviorState(a, key) === "unknown" && b.dealbreakers[key] !== "okay";
-    if ((bUnknownACares || aUnknownBCares) && !worthDiscussing.includes(note)) {
-      worthDiscussing.push(note);
-    }
   }
 
   // Fix 2: never falsely reassure. The reassuring fallback only appears on a

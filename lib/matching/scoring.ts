@@ -3,6 +3,7 @@ import type {
   DealbreakerKey,
   Freq,
   Questionnaire,
+  Stance,
   Tri,
 } from "@/types";
 import { freqToIndex } from "@/config/questionnaire";
@@ -217,65 +218,63 @@ const DEALBREAKER_KEYS: DealbreakerKey[] = [
   "frequentGuests",
 ];
 
-/**
- * Whether a person's self-reported in-room behavior is yes / no / unknown.
- * Fix 1: read the explicit `behavior` field instead of the old tolerance
- * ("okay") proxy. `null` (unset) and "prefer_not" → "unknown".
- */
-export function behaviorState(
-  q: Questionnaire,
-  key: "substances" | "nonveg",
-): "yes" | "no" | "unknown" {
-  const v = q.behavior?.[key];
-  if (v === "occasionally" || v === "regularly") return "yes";
-  if (v === "never") return "no";
-  return "unknown";
-}
+/* v3 penalty matrix (FABLE_HANDOFF §3.2) — symmetric, only three non-zero
+ * pairings. "Will do" is the sole signal that a person does the thing; nothing
+ * is derived from lifestyle answers anymore (no double-counting). */
+export const HARD_PENALTY = 35;
+export const MEDIUM_PENALTY = 17;
+export const MILD_PENALTY = 3;
 
-/** Does this person exhibit the habit behind a dealbreaker key? */
-export function exhibits(q: Questionnaire, key: DealbreakerKey): boolean {
-  switch (key) {
-    case "lateSleeping":
-      return q.sleep.sleepTime < 330; // midnight–5:30am
-    case "messyRoom":
-      return q.cleanliness.room <= 2;
-    case "loudMusic":
-      return (
-        freqToIndex(q.noise.reelsMusic) >= 3 || freqToIndex(q.noise.gaming) >= 3
-      );
-    case "frequentGuests":
-      return freqToIndex(q.social.guests) >= 3;
-    // Fix 1: read explicit behavior. UNKNOWN (null / "prefer_not") never counts
-    // as exhibiting, so it can never trigger a dealbreaker conflict.
-    case "substances":
-      return behaviorState(q, "substances") === "yes";
-    case "nonveg":
-      return behaviorState(q, "nonveg") === "yes";
-  }
-}
+export type DealbreakerSeverity = "hard" | "medium" | "mild";
 
 export interface DealbreakerConflict {
-  key: DealbreakerKey;
-  severity: "hard" | "soft";
+  category: DealbreakerKey;
+  /** Points to subtract from the base (positive number). */
+  penalty: number;
+  severity: DealbreakerSeverity;
+  /** Which side does the thing — drives directional copy ("they will" vs
+   *  "you will"). Only meaningful for hard/medium; mild has no doer. */
+  doer: "a" | "b";
 }
 
-/** Conflicts where one person's habit collides with the other's stance. */
+/** One cell of the symmetric matrix. Same-option pairs (incl. both-willDo)
+ *  and every remaining combination are 0 — alignment is never a bonus. */
+function evaluateCell(
+  aStance: Stance,
+  bStance: Stance,
+): Omit<DealbreakerConflict, "category"> | null {
+  if (aStance === "willDo" || bStance === "willDo") {
+    const doer = aStance === "willDo" ? "a" : "b";
+    const other = aStance === "willDo" ? bStance : aStance;
+    if (other === "dealbreaker")
+      return { penalty: HARD_PENALTY, severity: "hard", doer };
+    if (other === "annoying")
+      return { penalty: MEDIUM_PENALTY, severity: "medium", doer };
+    return null; // willDo × willDo / fine → 0
+  }
+  if (
+    (aStance === "fine" && bStance === "annoying") ||
+    (aStance === "annoying" && bStance === "fine")
+  ) {
+    return {
+      penalty: MILD_PENALTY,
+      severity: "mild",
+      doer: aStance === "fine" ? "a" : "b",
+    };
+  }
+  return null; // fine × dealbreaker, annoying × dealbreaker, all diagonals → 0
+}
+
+/** Evaluate the penalty matrix for every dealbreaker category (≤ 1 conflict
+ *  per category). Symmetric: swapping a/b flips `doer` but nothing else. */
 export function dealbreakerConflicts(
   a: Questionnaire,
   b: Questionnaire,
 ): DealbreakerConflict[] {
   const out: DealbreakerConflict[] = [];
-  for (const key of DEALBREAKER_KEYS) {
-    const bExhibits = exhibits(b, key);
-    const aExhibits = exhibits(a, key);
-    const aStance = a.dealbreakers[key];
-    const bStance = b.dealbreakers[key];
-    let severity: "hard" | "soft" | null = null;
-    if (bExhibits && aStance === "dealbreaker") severity = "hard";
-    else if (aExhibits && bStance === "dealbreaker") severity = "hard";
-    else if (bExhibits && aStance === "annoying") severity = "soft";
-    else if (aExhibits && bStance === "annoying") severity = "soft";
-    if (severity) out.push({ key, severity });
+  for (const category of DEALBREAKER_KEYS) {
+    const cell = evaluateCell(a.dealbreakers[category], b.dealbreakers[category]);
+    if (cell) out.push({ category, ...cell });
   }
   return out;
 }

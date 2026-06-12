@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminDb, uidFromAuthHeader } from "@/lib/firebase/admin";
 import { rankCandidates } from "@/lib/matching";
-import { exhibits } from "@/lib/matching/scoring";
+import { migrateQuestionnaire } from "@/config/questionnaire";
 import { hostelsOverlap, roomTypesOverlap } from "@/config/hostels";
 import type { ApiMatch, MatchFacets, PublicProfile } from "@/lib/api/types";
 import type { Gender, HostelId, Questionnaire, RoomType } from "@/types";
@@ -52,7 +52,9 @@ function facetsOf(q: Questionnaire): MatchFacets {
   const room = q.cleanliness.room;
   const monthly = q.spending.monthly;
   return {
-    sleep: exhibits(q, "lateSleeping") ? "late" : "early",
+    // Coarse Explore facet (not a dealbreaker): asleep between midnight and
+    // 5:30am counts as a late sleeper — same rule the old exhibits() used.
+    sleep: q.sleep.sleepTime < 330 ? "late" : "early",
     cleanliness: room <= 2 ? "relaxed" : room >= 4 ? "tidy" : "neutral",
     spending: monthly < 6000 ? "budget" : monthly <= 15000 ? "moderate" : "premium",
     personas: q.outingPersona,
@@ -87,10 +89,12 @@ export async function GET(req: NextRequest) {
     const data = d.data() as StoredQ;
     if (!data._onboarded || !data._profile) return;
     dataByUid.set(d.id, data);
-    candidateQs.push(data);
+    // v3 read-migration: docs that pre-date the 4-option stances keep ranking
+    // (okay→fine, never auto-"willDo") until their owner completes the modal.
+    candidateQs.push(migrateQuestionnaire(data));
   });
 
-  const ranked = rankCandidates(meData, candidateQs);
+  const ranked = rankCandidates(migrateQuestionnaire(meData), candidateQs);
   const matches: ApiMatch[] = [];
   for (const result of ranked) {
     const data = dataByUid.get(result.uid);

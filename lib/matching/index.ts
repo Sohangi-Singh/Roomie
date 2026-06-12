@@ -20,6 +20,13 @@ export interface RadarPoint {
   score: number;
 }
 
+/** A surfaced dealbreaker conflict (hard or medium — mild never flags). */
+export interface DealbreakerFlag {
+  category: DealbreakerKey;
+  label: string;
+  severity: "hard" | "medium";
+}
+
 export interface MatchResult {
   /** uid of the candidate (the "b" side of the pair). */
   uid: string;
@@ -29,26 +36,23 @@ export interface MatchResult {
   radar: RadarPoint[];
   /** Positive compatibility — "Why you match". */
   reasons: string[];
-  /** Mild, neutral notes (50–77 band + unknown behavior) — "Worth discussing". */
+  /** Medium dealbreakers + mild notes (50–77 band) — "Worth discussing". */
   worthDiscussing: string[];
   /** Soft mismatches — "Might be a problem, but is fine". */
   annoyances: string[];
   /** Hard dealbreaker conflicts + severe category mismatches — "Potential clashes". */
   conflicts: string[];
-  /** True when an absolute (hard) dealbreaker conflict exists. */
+  /** True when a hard (Will do × Dealbreaker) conflict exists. */
   dealbreaker: boolean;
-  /** Human labels of the hard dealbreakers that conflict — drives the ⚠️ badge. */
-  dealbreakerFlags: string[];
+  /** Hard + medium conflicts with severity — drives the card badges (§3.4d:
+   *  mild conflicts affect the score but are never written here). */
+  dealbreakerFlags: DealbreakerFlag[];
 }
 
-// Fix 3 + 4: dealbreakers are an explicit penalty + visible flag, not a floor.
-const HARD_PENALTY = 15;
-const SOFT_PENALTY = 5;
-/** Dealbreaker pairs never drop below this — the warning now lives in the flag. */
-const DEALBREAKER_FLOOR = 40;
-/** Honest lifestyle mismatch (no dealbreaker) floors here, not near 0, so it
- *  sits BELOW dealbreaker pairs ("very different" is worse than "one issue"). */
-const LIFESTYLE_FLOOR = 27;
+/** v3 (§3.3): penalties never crater the displayed score below this. Pairs
+ *  with no dealbreaker conflicts keep their natural base — lifestyle
+ *  opposites bottom out around 25–30 on their own, below dealbreaker pairs. */
+const FLOOR = 35;
 
 const DEALBREAKER_LABEL = Object.fromEntries(
   DEALBREAKER_META.map((d) => [d.key, d.label]),
@@ -99,29 +103,39 @@ export function scorePair(a: Questionnaire, b: Questionnaire): MatchResult {
     };
   }
 
+  // §3.3.1 — base: the 12 lifestyle categories only, importance-weighted.
+  // Dealbreakers contribute nothing here (and never add positive points).
   const categories = categoryScores(a, b);
   const weights = effectiveWeights(a.importance, b.importance);
-
-  // Honest compatibility first.
-  let raw = 0;
+  let base = 0;
   (Object.keys(categories) as Category[]).forEach((c) => {
-    raw += categories[c] * weights[c];
+    base += categories[c] * weights[c];
   });
 
+  // §3.3.2 — penalty matrix across the 6 dealbreaker categories. Penalties
+  // are absolute (never importance-scaled, §3.4e) and stack with no cap.
   const conflicts = dealbreakerConflicts(a, b);
-  const hard = conflicts.filter((c) => c.severity === "hard");
-  const soft = conflicts.filter((c) => c.severity === "soft");
+  const totalPenalty = conflicts.reduce((sum, c) => sum + c.penalty, 0);
+  const hadHard = conflicts.some((c) => c.severity === "hard");
 
-  // Fix 3: fixed penalty per conflict (was a ×0.25 crater to a 22% floor).
-  let overall = raw - HARD_PENALTY * hard.length - SOFT_PENALTY * soft.length;
-  // Fix 3 + 4: dealbreaker pairs floor at 40 (warning is the flag); honest
-  // lifestyle mismatch floors at ~27 so it ranks below dealbreaker pairs.
-  const floor = hard.length > 0 ? DEALBREAKER_FLOOR : LIFESTYLE_FLOOR;
-  overall = Math.max(floor, overall);
+  // §3.3.3 — floor at 35: penalties can't crater the score below 35. Pairs
+  // with no conflicts keep their natural base.
+  let overall = base - totalPenalty;
+  if (totalPenalty > 0) overall = Math.max(FLOOR, overall);
   overall = Math.max(0, Math.min(100, Math.round(overall)));
 
-  // Fix 3: hard dealbreakers become explicit, deduped flags for the UI badge.
-  const dealbreakerFlags = [...new Set(hard.map((c) => DEALBREAKER_LABEL[c.key]))];
+  // §3.4d — flags carry only hard + medium; mild is a silent score nudge.
+  const dealbreakerFlags: DealbreakerFlag[] = conflicts.flatMap((c) =>
+    c.severity === "mild"
+      ? []
+      : [
+          {
+            category: c.category,
+            label: DEALBREAKER_LABEL[c.category],
+            severity: c.severity,
+          },
+        ],
+  );
 
   const insights = buildInsights(a, b, categories, conflicts, overall);
 
@@ -134,7 +148,7 @@ export function scorePair(a: Questionnaire, b: Questionnaire): MatchResult {
     worthDiscussing: insights.worthDiscussing,
     annoyances: insights.annoyances,
     conflicts: insights.conflicts,
-    dealbreaker: hard.length > 0,
+    dealbreaker: hadHard,
     dealbreakerFlags,
   };
 }

@@ -1,5 +1,5 @@
 import { RequireAuth } from "@/components/features/RequireAuth";
-import { BehaviorPrompt } from "@/components/features/BehaviorPrompt";
+import { DealbreakerPrompt } from "@/components/features/DealbreakerPrompt";
 import { BottomNav, TopNav } from "@/components/ui";
 
 export default function AppLayout({
@@ -17,7 +17,7 @@ export default function AppLayout({
       </div>
       <TopNav />
       <BottomNav />
-      <BehaviorPrompt />
+      <DealbreakerPrompt />
     </RequireAuth>
   );
 }

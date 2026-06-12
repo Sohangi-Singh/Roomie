@@ -23,6 +23,10 @@ import type {
   User,
 } from "@/types";
 import type { PublicProfile } from "@/lib/api/types";
+import {
+  DEALBREAKERS_VERSION,
+  migrateQuestionnaire,
+} from "@/config/questionnaire";
 import { normaliseUserPrefs } from "./normalise";
 
 function converter<T>() {
@@ -69,23 +73,22 @@ export async function getQuestionnaire(
 ): Promise<Questionnaire | null> {
   const snap = await getDoc(doc(qCol, uid));
   if (!snap.exists()) return null;
-  const q = snap.data();
-  // Read-time migration (Fix 1): docs created before the behavior questions
-  // predate `behavior`. Default to UNSET (null) — never infer from old answers.
-  // The user is prompted to fill it via the BehaviorPrompt modal on next open.
-  if (!q.behavior) {
-    q.behavior = { substances: null, nonveg: null };
-  }
-  return q;
+  // Read-time migration (v3): map legacy 3-option stances (okay→fine, never
+  // auto-"willDo") and drop the removed v2 behavior field. The user is asked
+  // to re-answer via the DealbreakerPrompt modal until dealbreakersVersion=3.
+  return migrateQuestionnaire(snap.data());
 }
 
-/** Save just the in-room behavior answers (Fix 1 — backfill modal). */
-export async function updateQuestionnaireBehavior(
+/** Save the v3 4-option dealbreaker answers (one-time migration modal). */
+export async function updateQuestionnaireDealbreakers(
   uid: string,
-  behavior: Questionnaire["behavior"],
+  dealbreakers: Questionnaire["dealbreakers"],
 ): Promise<void> {
-  await updateDoc(doc(db, "questionnaires", uid), { behavior });
-  // Behavior affects dealbreaker detection, so refresh everyone's match list.
+  await updateDoc(doc(db, "questionnaires", uid), {
+    dealbreakers,
+    dealbreakersVersion: DEALBREAKERS_VERSION,
+  });
+  // Dealbreakers drive penalties/flags, so refresh everyone's match list.
   await bumpMatchesVersion().catch(() => undefined);
 }
 

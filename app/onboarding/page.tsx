@@ -31,6 +31,7 @@ import {
 import {
   STEPS,
   CATEGORY_META,
+  DEALBREAKERS_VERSION,
   questionnaireSchema,
 } from "@/config/questionnaire";
 import { YEARS } from "@/config/college";
@@ -216,7 +217,15 @@ function OnboardingFlow() {
         ...(p.instagram ? { instagram: p.instagram } : {}),
         ...(p.bio ? { bio: p.bio } : {}),
       };
-      const q: Questionnaire = { ...answers, uid: fbUser.uid, completedAt: now };
+      // Stamp the dealbreaker format version — answers hydrated from a pre-v3
+      // doc (edit mode) wouldn't carry it, and this flow always collects the
+      // 4-option format, so the migration modal must not re-trigger.
+      const q: Questionnaire = {
+        ...answers,
+        uid: fbUser.uid,
+        dealbreakersVersion: DEALBREAKERS_VERSION,
+        completedAt: now,
+      };
       if (!questionnaireSchema.safeParse(q).success) {
         setError("Something's off with your answers. Please review.");
         setSubmitting(false);

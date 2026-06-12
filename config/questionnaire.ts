@@ -1,6 +1,5 @@
 import { z } from "zod";
 import type {
-  BehaviorFreq,
   Category,
   DealbreakerKey,
   Freq,
@@ -65,28 +64,12 @@ export const PERSONA_OPTIONS: { value: Persona; label: string; emoji: string }[]
     { value: "sports", label: "Sports", emoji: "🏏" },
   ];
 
+/** v3 dealbreaker stances — the four UI labels are fixed product copy. */
 export const STANCE_OPTIONS: { value: Stance; label: string }[] = [
-  { value: "okay", label: "Fine" },
+  { value: "willDo", label: "Will do in room" },
+  { value: "fine", label: "Fine" },
   { value: "annoying", label: "Annoying" },
   { value: "dealbreaker", label: "Dealbreaker" },
-];
-
-/** In-room behavior options (Fix 1 — substances/non-veg are behavior, not
- *  inferred from tolerance). "prefer_not" and an unset (null) value are both
- *  treated as UNKNOWN by the matching engine. */
-export const BEHAVIOR_OPTIONS: { value: BehaviorFreq; label: string }[] = [
-  { value: "never", label: "Never" },
-  { value: "occasionally", label: "Occasionally" },
-  { value: "regularly", label: "Regularly" },
-  { value: "prefer_not", label: "Prefer not to say" },
-];
-
-export const BEHAVIOR_QUESTIONS: {
-  key: "substances" | "nonveg";
-  label: string;
-}[] = [
-  { key: "substances", label: "Do you smoke or drink in the room?" },
-  { key: "nonveg", label: "Do you eat non-veg in the room?" },
 ];
 
 export const DEALBREAKER_META: {
@@ -200,7 +183,6 @@ export type Step =
     }
   | { id: string; kind: "persona"; title: string; subtitle: string }
   | { id: string; kind: "importance"; title: string; subtitle: string }
-  | { id: string; kind: "behavior"; title: string; subtitle: string }
   | { id: string; kind: "dealbreakers"; title: string; subtitle: string };
 
 export const STEPS: Step[] = [
@@ -493,12 +475,6 @@ export const STEPS: Step[] = [
     subtitle: "Tap on one, 2 times to increase the intensity.",
   },
   {
-    id: "behavior",
-    kind: "behavior",
-    title: "Two honest ones",
-    subtitle: "Only used to flag clear dealbreakers. Always kept private.",
-  },
-  {
     id: "dealbreakers",
     kind: "dealbreakers",
     title: "Any dealbreakers?",
@@ -525,8 +501,6 @@ export function defaultQuestionnaire(uid: string): Questionnaire {
     outingPersona: [],
     travel: { maxKm: 15, style: "planned" },
     sharing: { food: "maybe", clothes: "maybe", cosmetics: "maybe" },
-    // Behavior unset by default — must be answered, never inferred (Fix 1).
-    behavior: { substances: null, nonveg: null },
     importance: {
       sleep: 0,
       cleanliness: 0,
@@ -542,15 +516,48 @@ export function defaultQuestionnaire(uid: string): Questionnaire {
       sharing: 0,
     },
     dealbreakers: {
-      substances: "okay",
-      nonveg: "okay",
-      loudMusic: "okay",
-      lateSleeping: "okay",
-      messyRoom: "okay",
-      frequentGuests: "okay",
+      substances: "fine",
+      nonveg: "fine",
+      loudMusic: "fine",
+      lateSleeping: "fine",
+      messyRoom: "fine",
+      frequentGuests: "fine",
     },
+    dealbreakersVersion: DEALBREAKERS_VERSION,
     completedAt: 0,
   };
+}
+
+/* ----------------------------- migration -------------------------------- */
+
+/** Format version of the dealbreaker answers. Docs stamped < 3 (or unstamped)
+ *  hold legacy 3-option stances and trigger the one-time v3 migration modal. */
+export const DEALBREAKERS_VERSION = 3;
+
+/**
+ * Read-time migration for questionnaires saved before v3. Pure — used by both
+ * the client (`getQuestionnaire`) and the server matching routes, so an
+ * un-migrated user keeps ranking correctly until they complete the modal.
+ *
+ *  - legacy stance `"okay"` → `"fine"`; `"annoying"`/`"dealbreaker"` unchanged.
+ *  - `"willDo"` is NEVER auto-assigned — it requires explicit user consent.
+ *  - drops the removed v2 `behavior` field if present.
+ */
+export function migrateQuestionnaire(q: Questionnaire): Questionnaire {
+  // Loosely typed view: pre-v3 docs hold "okay" stances + a `behavior` field.
+  const legacy = q as unknown as {
+    behavior?: unknown;
+    dealbreakers?: Partial<Record<DealbreakerKey, string>>;
+  };
+  const dealbreakers = {} as Record<DealbreakerKey, Stance>;
+  for (const key of DEALBREAKER_KEYS) {
+    const v = legacy.dealbreakers?.[key];
+    dealbreakers[key] = v === "okay" || v == null ? "fine" : (v as Stance);
+  }
+  const out: Record<string, unknown> = { ...(q as unknown as Record<string, unknown>) };
+  delete out.behavior;
+  out.dealbreakers = dealbreakers;
+  return out as unknown as Questionnaire;
 }
 
 /* ---------------------------- validation -------------------------------- */
@@ -558,13 +565,7 @@ export function defaultQuestionnaire(uid: string): Questionnaire {
 const level = z.number().int().min(1).max(5);
 const freq = z.enum(["never", "rarely", "sometimes", "often", "always"]);
 const tri = z.enum(["no", "maybe", "yes"]);
-const stance = z.enum(["okay", "annoying", "dealbreaker"]);
-const behaviorFreq = z.enum([
-  "never",
-  "occasionally",
-  "regularly",
-  "prefer_not",
-]);
+const stance = z.enum(["willDo", "fine", "annoying", "dealbreaker"]);
 const importanceVal = z.union([z.literal(0), z.literal(1), z.literal(2)]);
 const persona = z.enum([
   "nature",
@@ -615,15 +616,9 @@ export const questionnaireSchema = z.object({
     style: z.enum(["spontaneous", "planned"]),
   }),
   sharing: z.object({ food: tri, clothes: tri, cosmetics: tri }),
-  // Optional so pre-Fix-1 docs (which predate `behavior`) still validate —
-  // matching treats a missing/unset value as UNKNOWN, never incomplete.
-  behavior: z
-    .object({
-      substances: behaviorFreq.nullable(),
-      nonveg: behaviorFreq.nullable(),
-    })
-    .optional(),
   importance: z.record(z.string(), importanceVal),
   dealbreakers: z.record(z.string(), stance),
+  // Optional so pre-v3 docs (mapped on read) still validate.
+  dealbreakersVersion: z.number().optional(),
   completedAt: z.number(),
 });
