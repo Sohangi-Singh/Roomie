@@ -1,3 +1,6 @@
+/** Delivery lifecycle, strictly monotonic: sent → delivered → read. */
+export type MessageStatus = "sent" | "delivered" | "read";
+
 export interface Message {
   id: string;
   /** Sender uid. */
@@ -8,4 +11,6 @@ export interface Message {
   participants: string[];
   text: string;
   createdAt: number;
+  /** Absent on legacy messages — treat as "sent". */
+  status?: MessageStatus;
 }

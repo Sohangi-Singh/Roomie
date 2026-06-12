@@ -2,16 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, AtSign, Phone, Send } from "lucide-react";
+import { ArrowLeft, AtSign, Check, CheckCheck, Phone, Send } from "lucide-react";
 import { useAuthStore } from "@/stores/authStore";
 import { useChat } from "@/hooks/useChat";
 import { useConnectionWith } from "@/hooks/useConnections";
 import { markChatSeen } from "@/hooks/useInboxBadge";
-import { getUser } from "@/lib/firebase/db";
+import { getUser, markMessagesStatus } from "@/lib/firebase/db";
 import { Avatar, Button, Input } from "@/components/ui";
 import { cn } from "@/lib/utils/cn";
 import { batchLabel } from "@/config/college";
-import type { User } from "@/types";
+import type { Message, User } from "@/types";
+
+/** WhatsApp-style ticks, sender-side only: ✓ sent · ✓✓ delivered · blue ✓✓ read. */
+function StatusTicks({ status }: { status?: Message["status"] }) {
+  if (status === "read") {
+    return <CheckCheck className="size-3.5 shrink-0 text-sky-300" aria-label="Read" />;
+  }
+  if (status === "delivered") {
+    return <CheckCheck className="size-3.5 shrink-0" aria-label="Delivered" />;
+  }
+  return <Check className="size-3.5 shrink-0" aria-label="Sent" />;
+}
 
 function formatTime(ts: number): string {
   const d = new Date(ts);
@@ -54,6 +65,19 @@ export default function ChatPage() {
     // Anything visible has been "seen" — keeps the DMs badge in sync.
     if (otherUid) markChatSeen(otherUid);
   }, [messages.length, otherUid]);
+
+  // The thread is open, so everything addressed to me is read. Keyed on the
+  // full message list (not just length) so a sent→delivered flip from the
+  // background listener still gets upgraded to read while I'm viewing.
+  useEffect(() => {
+    if (!me) return;
+    const unread = messages
+      .filter((m) => m.to === me.uid && m.status !== "read")
+      .map((m) => m.id);
+    if (unread.length > 0) {
+      void markMessagesStatus(unread, "read").catch(() => {});
+    }
+  }, [messages, me]);
 
   const handleSend = async () => {
     const body = text.trim();
@@ -189,11 +213,12 @@ export default function ChatPage() {
                 <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 <p
                   className={cn(
-                    "mt-0.5 text-[10px]",
+                    "mt-0.5 flex items-center justify-end gap-1 text-[10px]",
                     mine ? "text-accent-100/80" : "text-faint",
                   )}
                 >
                   {formatTime(m.createdAt)}
+                  {mine && <StatusTicks status={m.status} />}
                 </p>
               </div>
             </div>

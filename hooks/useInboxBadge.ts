@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import { subscribeToInbox } from "@/lib/firebase/db";
+import { markMessagesStatus, subscribeToInbox } from "@/lib/firebase/db";
 import type { Connection, Message } from "@/types";
 
 // Seen-state keys are namespaced by the signed-in uid — a browser can hold
@@ -94,6 +94,14 @@ export function useInboxBadge(): number {
       (data) => {
         dataRef.current = data;
         recount();
+        // This listener runs on every authed page, so receiving a snapshot IS
+        // "the recipient's client got the message" — flip sent → delivered.
+        const undelivered = data.messages
+          .filter((m) => m.to === uid && (m.status ?? "sent") === "sent")
+          .map((m) => m.id);
+        if (undelivered.length > 0) {
+          void markMessagesStatus(undelivered, "delivered").catch(() => {});
+        }
       },
       (err) => {
         console.warn("[inbox badge] subscription error:", err);

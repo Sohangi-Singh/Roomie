@@ -10,6 +10,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
   type DocumentData,
   type QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -191,9 +192,28 @@ export async function updateConnectionStatus(
 /* ------------------------------ messages -------------------------------- */
 
 export async function sendMessage(m: Omit<Message, "id">): Promise<string> {
-  const ref = await addDoc(msgCol, m as Message);
+  const ref = await addDoc(msgCol, { ...m, status: "sent" } as Message);
   await updateDoc(ref, { id: ref.id });
   return ref.id;
+}
+
+/** Upgrade message statuses (sent → delivered → read). Skips ids already in
+ *  flight so the snapshot→mark→snapshot loop settles after one write. */
+const statusInFlight = new Set<string>();
+export async function markMessagesStatus(
+  ids: string[],
+  status: "delivered" | "read",
+): Promise<void> {
+  const pending = ids.filter((id) => !statusInFlight.has(id));
+  if (pending.length === 0) return;
+  pending.forEach((id) => statusInFlight.add(id));
+  try {
+    const batch = writeBatch(db);
+    pending.forEach((id) => batch.update(doc(msgCol, id), { status }));
+    await batch.commit();
+  } finally {
+    pending.forEach((id) => statusInFlight.delete(id));
+  }
 }
 
 /** Subscribe to live updates of the conversation between `myUid` and
